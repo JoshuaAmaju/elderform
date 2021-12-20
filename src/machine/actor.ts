@@ -2,9 +2,14 @@ import { assign, sendParent, createMachine } from 'xstate';
 
 type Context = {
   value?: any;
+  __firstRun: boolean;
 };
 
-type States = { value: 'idle' | 'validating'; context: Context };
+type States = {
+  value: 'idle';
+  // | 'validating';
+  context: Context;
+};
 
 type Events =
   | { id: string; type: 'FAIL' | 'SUCCESS' }
@@ -15,8 +20,28 @@ export const actor = ({ id }: { id: string }) => {
     {
       initial: 'idle',
 
+      context: {
+        __firstRun: true,
+      },
+
+      invoke: {
+        src: 'validate',
+        onDone: {
+          target: 'idle',
+          actions: 'sendSuccess',
+        },
+        onError: {
+          target: 'idle',
+          actions: 'sendFail',
+        },
+      },
+
       states: {
         idle: {
+          entry: assign({
+            __firstRun: (_) => false,
+          }),
+
           on: {
             VALIDATE: {
               actions: 'setValue',
@@ -25,25 +50,27 @@ export const actor = ({ id }: { id: string }) => {
           },
         },
 
-        validating: {
-          on: {
-            VALIDATE: {
-              internal: false,
-              actions: 'setValue',
-              target: 'validating',
-            },
-          },
+        // validating: {
+        //   on: {
+        //     VALIDATE: {
+        //       internal: false,
+        //       actions: 'setValue',
+        //       target: 'validating',
+        //     },
+        //   },
 
-          invoke: {
-            src: 'validate',
-            onDone: {
-              target: 'idle',
-            },
-            onError: {
-              target: 'idle',
-            },
-          },
-        },
+        //   invoke: {
+        //     src: 'validate',
+        //     onDone: {
+        //       target: 'idle',
+        //       actions: 'sendSuccess',
+        //     },
+        //     onError: {
+        //       target: 'idle',
+        //       actions: 'sendFail',
+        //     },
+        //   },
+        // },
       },
     },
     {
@@ -62,7 +89,8 @@ export const actor = ({ id }: { id: string }) => {
       },
 
       services: {
-        validate: () => Promise.resolve(),
+        validate: ({ __firstRun }) =>
+          __firstRun ? Promise.resolve() : Promise.resolve(),
       },
     }
   );
