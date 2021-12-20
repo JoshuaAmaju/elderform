@@ -33,7 +33,6 @@
   "jest": {
     "testEnvironment": "node"
   },
-  "peerDependencies": {},
   "engines": {
     "node": ">=12"
   },
@@ -46,5 +45,14 @@
       "path": "dist/popform.esm.js",
       "limit": "10 KB"
     }
-  ]
+  ],
+  "devDependencies": {
+    "@tsconfig/recommended": "^1.0.1",
+    "xstate": "^4.26.1",
+    "zod": "^3.11.6"
+  },
+  "peerDependencies": {
+    "xstate": "^4.26.1",
+    "zod": "^3.11.6"
+  }
 }
