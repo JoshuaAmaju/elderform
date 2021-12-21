@@ -28,10 +28,12 @@ export const actor = ({ id }: { id: string }) => {
         src: 'validate',
         onDone: {
           target: 'idle',
+          cond: 'notFirstRun',
           actions: 'sendSuccess',
         },
         onError: {
           target: 'idle',
+          cond: 'notFirstRun',
           actions: 'sendFail',
         },
       },
@@ -74,6 +76,10 @@ export const actor = ({ id }: { id: string }) => {
       },
     },
     {
+      guards: {
+        notFirstRun: ({ __firstRun }) => !__firstRun,
+      },
+
       actions: {
         setValue: assign({
           value: (_, { value }: any) => value,
