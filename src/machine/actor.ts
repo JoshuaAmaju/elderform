@@ -1,4 +1,5 @@
 import { assign, sendParent, createMachine } from 'xstate';
+import { ZodTypeAny } from 'zod';
 
 type Context = {
   value?: any;
@@ -15,7 +16,13 @@ type Events =
   | { id: string; type: 'FAIL' | 'SUCCESS' }
   | { type: 'VALIDATE'; value: any };
 
-export const actor = ({ id }: { id: string }) => {
+export const actor = ({
+  id,
+  validator,
+}: {
+  id: string;
+  validator: ZodTypeAny;
+}) => {
   return createMachine<Context, Events, States>(
     {
       initial: 'idle',
@@ -95,8 +102,8 @@ export const actor = ({ id }: { id: string }) => {
       },
 
       services: {
-        validate: ({ __firstRun }) =>
-          __firstRun ? Promise.resolve() : Promise.resolve(),
+        validate: ({ value, __firstRun }) =>
+          __firstRun ? Promise.resolve() : validator.parseAsync(value),
       },
     }
   );
