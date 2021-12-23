@@ -28,8 +28,8 @@ type Context<T extends ZodRawShape, D = any, E = Error> = {
   data?: D;
   error?: E;
   schema?: Schema<T>;
-  __doneMarker: Set<string>;
   errors: Map<keyof T, Error>;
+  __validationMarker: Set<string>;
   values: { [K in keyof T]: T[K] };
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
@@ -84,11 +84,14 @@ export const machine = <T extends ZodRawShape, D, E>() => {
       },
 
       states: {
-        // waitingInit: {
-
-        // },
+        waitingInit: {},
 
         idle: {
+          always: {
+            target: 'waitingInit',
+            cond: ({ schema }) => !schema,
+          },
+
           on: {
             [EventTypes.CHANGE]: {
               actions: 'setValue',
@@ -138,7 +141,7 @@ export const machine = <T extends ZodRawShape, D, E>() => {
 
           always: {
             target: 'submitting',
-            cond: ({ schema, __doneMarker }) => {
+            cond: ({ schema, __validationMarker: __doneMarker }) => {
               return __doneMarker.size >= pipe(schema, keys, length);
             },
           },
@@ -238,7 +241,10 @@ export const machine = <T extends ZodRawShape, D, E>() => {
         }),
 
         mark: assign({
-          __doneMarker: ({ __doneMarker }, { id }: any) => {
+          __validationMarker: (
+            { __validationMarker: __doneMarker },
+            { id }: any
+          ) => {
             __doneMarker.add(id);
             return __doneMarker;
           },
