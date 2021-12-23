@@ -1,9 +1,19 @@
-import { send, actions, assign, createMachine, ActorRef } from 'xstate';
+import { pipe } from 'fp-ts/lib/function';
+import * as O from 'fp-ts/lib/Option';
+import { identity, keys, length, map } from 'ramda';
+import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
+import { ZodRawShape } from 'zod';
+import { Schema } from '../types';
+import { actor } from './actor';
 
 enum EventTypes {
+  // RESET = 'reset',
   SUBMIT = 'submit',
   CHANGE = 'change',
   VALIDATE = 'validate',
+  // CLEAR_DATA = 'clearData',
+  // CLEAR_ERROR = 'clearError',
+  // CLEAR_ERRORS = 'clearErrors',
   CHANGE_WITH_VALIDATE = 'changeWithValidate',
 }
 
@@ -14,20 +24,25 @@ enum ActorStates {
   VALIDATING = 'validating',
 }
 
-type Context = {
-  data: any;
-  error: Error;
+type Context<T extends ZodRawShape, D = any, E = Error> = {
+  data?: D;
+  error?: E;
+  schema?: Schema<T>;
   __doneMarker: Set<string>;
-  errors: Map<string, Error>;
-  values: { [K: string]: any };
-  states: { [K: string]: ActorStates };
+  errors: Map<keyof T, Error>;
+  values: { [K in keyof T]: T[K] };
   actors: { [K: string]: ActorRef<any> };
+  states: { [K in keyof T]: ActorStates };
 };
 
-type States =
-  | { value: 'idle'; context: Context }
-  | { value: 'validating'; context: Context }
-  | { value: 'submitting'; context: Context };
+type States<T extends ZodRawShape, D, E> =
+  | { value: 'waitingInit'; context: Context<T, D, E> }
+  | { value: 'idle'; context: Context<T, D, E> }
+  | {
+      value: 'validating';
+      context: Context<T, D, E> & { schema: Schema<T> };
+    }
+  | { value: 'submitting'; context: Context<T, D, E> };
 
 type Events =
   | { type: EventTypes.SUBMIT }
@@ -40,161 +55,223 @@ type Events =
   | { type: 'FAIL'; id: string; reason: any }
   | { type: 'SUCCESS' | 'VALIDATING'; id: string };
 
-const { pure } = actions;
+const { pure, choose } = actions;
 
-export const machine = createMachine<Context, Events, States>(
-  {
-    initial: 'idle',
+export const machine = <T extends ZodRawShape, D, E>() => {
+  return createMachine<Context<T, D, E>, Events, States<T, D, E>>(
+    {
+      initial: 'idle',
 
-    on: {
-      FAIL: {
-        actions: ['setActorFail'],
+      entry: choose([
+        {
+          cond: 'hasSchema',
+          actions: 'spawnActors',
+        },
+      ]),
+
+      on: {
+        FAIL: {
+          actions: ['setActorFail'],
+        },
+
+        SUCCESS: {
+          actions: ['setActorSuccess'],
+        },
+
+        VALIDATING: {
+          actions: ['setActorValidating'],
+        },
       },
 
-      SUCCESS: {
-        actions: ['setActorSuccess'],
+      states: {
+        // waitingInit: {
+
+        // },
+
+        idle: {
+          on: {
+            [EventTypes.CHANGE]: {
+              actions: 'setValue',
+            },
+
+            [EventTypes.SUBMIT]: [
+              {
+                actions: 'onSubmitWithErrors',
+                cond: ({ errors }) => errors.size > 0,
+              },
+              {
+                target: 'validating',
+              },
+            ],
+
+            [EventTypes.VALIDATE]: {
+              actions: send(
+                ({ values }, { id }) => {
+                  return { value: values[id], type: 'VALIDATE' };
+                },
+                { to: (_, { id }) => id }
+              ),
+            },
+
+            [EventTypes.CHANGE_WITH_VALIDATE]: {
+              actions: [
+                'setValue',
+                send((_, { value }) => ({ value, type: 'VALIDATE' }), {
+                  to: (_, { id }) => id,
+                }),
+              ],
+            },
+          },
+        },
+
+        validating: {
+          entry: pure(({ schema, values }) => {
+            return pipe(
+              schema,
+              keys,
+              map((key) => {
+                const value = values[key];
+                return send({ value, type: 'VALIDATE' }, { to: key });
+              })
+            );
+          }),
+
+          always: {
+            target: 'submitting',
+            cond: ({ schema, __doneMarker }) => {
+              return __doneMarker.size >= pipe(schema, keys, length);
+            },
+          },
+
+          on: {
+            FAIL: {
+              actions: ['mark', 'setActorFail'],
+            },
+
+            SUCCESS: {
+              actions: ['mark', 'setActorSuccess'],
+            },
+          },
+        },
+
+        submitting: {
+          exit: assign({
+            states: ({ schema }) => {
+              return Object.fromEntries(
+                keys(schema).map((key) => [key, ActorStates.IDLE] as const)
+              ) as Context<T, D, E>['states'];
+            },
+          }),
+
+          invoke: {
+            src: 'submit',
+            onDone: {
+              target: 'idle',
+              actions: assign({
+                data: (_, { data }) => data,
+              }),
+            },
+            onError: {
+              target: 'idle',
+              actions: assign({
+                error: (_, { data }) => data,
+              }),
+            },
+          },
+        },
+      },
+    },
+    {
+      guards: {
+        hasSchema: ({ schema }) => !!schema,
       },
 
-      VALIDATING: {
-        actions: assign({
-          states: ({ states }, { id }) => {
+      actions: {
+        spawnActors: assign({
+          actors: ({ schema }) => {
+            const entries = pipe(
+              schema,
+              O.fromNullable,
+              O.map((s) => {
+                return pipe(
+                  keys(s),
+                  map((key) => {
+                    const validator = s[key];
+                    const act = spawn(actor({ id: key as string, validator }));
+                    return [key, act] as const;
+                  })
+                );
+              }),
+              O.fold(() => [], identity)
+            );
+
+            return Object.fromEntries(entries);
+          },
+        }),
+
+        setValue: assign({
+          values: ({ values }, { id, value }: any) => {
+            return { ...values, [id]: value };
+          },
+        }),
+
+        setError: assign({
+          errors: ({ errors }, { id, error }: any) => {
+            errors.set(id, error);
+            return errors;
+          },
+        }),
+
+        removeError: assign({
+          errors: ({ errors }, { id }: any) => {
+            errors.delete(id);
+            return errors;
+          },
+        }),
+
+        clearErrors: assign({
+          errors: (_) => new Map(),
+        }),
+
+        clearValues: assign({
+          values: (_) => ({} as T),
+        }),
+
+        mark: assign({
+          __doneMarker: ({ __doneMarker }, { id }: any) => {
+            __doneMarker.add(id);
+            return __doneMarker;
+          },
+        }),
+
+        setActorIdle: assign({
+          states: ({ states }, { id }: any) => {
+            return { ...states, [id]: ActorStates.IDLE };
+          },
+        }),
+
+        setActorFail: assign({
+          states: ({ states }, { id }: any) => {
+            return { ...states, [id]: ActorStates.FAILED };
+          },
+        }),
+
+        setActorSuccess: assign({
+          states: ({ states }, { id }: any) => {
+            return { ...states, [id]: ActorStates.SUCCESS };
+          },
+        }),
+
+        setActorValidating: assign({
+          states: ({ states }, { id }: any) => {
             return { ...states, [id]: ActorStates.VALIDATING };
           },
         }),
       },
-    },
 
-    states: {
-      idle: {
-        on: {
-          [EventTypes.CHANGE]: {
-            actions: 'setValue',
-          },
-
-          [EventTypes.SUBMIT]: 'validating',
-
-          [EventTypes.VALIDATE]: {
-            actions: send(
-              ({ values }, { id }) => {
-                return { value: values[id], type: 'VALIDATE' };
-              },
-              { to: (_, { id }) => id }
-            ),
-          },
-
-          [EventTypes.CHANGE_WITH_VALIDATE]: {
-            actions: [
-              'setValue',
-              send((_, { value }) => ({ value, type: 'VALIDATE' }), {
-                to: (_, { id }) => id,
-              }),
-            ],
-          },
-        },
+      services: {
+        submit: () => Promise.resolve(),
       },
-
-      validating: {
-        // entry: pure(() => {}),
-
-        always: {
-          target: 'submitting',
-          cond: ({ __doneMarker }) => __doneMarker.size > 0,
-        },
-
-        on: {
-          FAIL: {
-            actions: ['mark', 'setActorFail'],
-          },
-
-          SUCCESS: {
-            actions: ['mark', 'setActorSuccess'],
-          },
-        },
-      },
-
-      submitting: {
-        // exit: assign({
-        //   states: () => ({}),
-        // }),
-
-        invoke: {
-          src: '',
-          onDone: {
-            target: 'idle',
-            actions: assign({
-              data: (_, { data }) => data,
-            }),
-          },
-          onError: {
-            target: 'idle',
-            actions: assign({
-              error: (_, { data }) => data,
-            }),
-          },
-        },
-      },
-    },
-  },
-  {
-    actions: {
-      setValue: assign({
-        values: ({ values }, { id, value }: any) => {
-          return { ...values, [id]: value };
-        },
-      }),
-
-      setError: assign({
-        errors: ({ errors }, { id, error }: any) => {
-          errors.set(id, error);
-          return errors;
-        },
-      }),
-
-      removeError: assign({
-        errors: ({ errors }, { id }: any) => {
-          errors.delete(id);
-          return errors;
-        },
-      }),
-
-      clearErrors: assign({
-        errors: (_) => new Map(),
-      }),
-
-      clearValues: assign({
-        values: (_) => ({}),
-      }),
-
-      mark: assign({
-        __doneMarker: ({ __doneMarker }, { id }: any) => {
-          __doneMarker.add(id);
-          return __doneMarker;
-        },
-      }),
-
-      setActorIdle: assign({
-        states: ({ states }, { id }: any) => {
-          return { ...states, [id]: ActorStates.IDLE };
-        },
-      }),
-
-      setActorFail: assign({
-        states: ({ states }, { id }: any) => {
-          return { ...states, [id]: ActorStates.FAILED };
-        },
-      }),
-
-      setActorSuccess: assign({
-        states: ({ states }, { id }: any) => {
-          return { ...states, [id]: ActorStates.SUCCESS };
-        },
-      }),
-
-      setActorValidating: assign({
-        states: ({ states }, { id }: any) => {
-          return { ...states, [id]: ActorStates.VALIDATING };
-        },
-      }),
-    },
-  }
-);
+    }
+  );
+};

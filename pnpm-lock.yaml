@@ -1,5 +1,9 @@
+dependencies:
+  fp-ts: 2.11.5
+  ramda: 0.27.1
 devDependencies:
   '@tsconfig/recommended': 1.0.1
+  '@types/ramda': 0.27.61
   xstate: 4.26.1
   zod: 3.11.6
 lockfileVersion: 5.2
@@ -8,6 +12,24 @@ packages:
     dev: true
     resolution:
       integrity: sha512-2xN+iGTbPBEzGSnVp/Hd64vKJCJWxsi9gfs88x4PPMyEjHJoA3o5BY9r5OLPHIZU2pAQxkSAsJFqn6itClP8mQ==
+  /@types/ramda/0.27.61:
+    dependencies:
+      ts-toolbelt: 6.15.5
+    dev: true
+    resolution:
+      integrity: sha512-zw9FA0cvIufNmjQXESLPHMhLbwyVjUqk9f2LAvnO4qg+URXpUW4+oD9zu7lBjn+NuaTjFHz/d/M/OYogPymp5g==
+  /fp-ts/2.11.5:
+    dev: false
+    resolution:
+      integrity: sha512-OqlwJq1BdpB83BZXTqI+dNcA6uYk6qk4u9Cgnt64Y+XS7dwdbp/mobx8S2KXf2AXH+scNmA/UVK3SEFHR3vHZA==
+  /ramda/0.27.1:
+    dev: false
+    resolution:
+      integrity: sha512-PgIdVpn5y5Yns8vqb8FzBUEYn98V3xcPgawAkkgj0YJ0qDsnHCiNmZYfOGMgOvoB0eWFLpYbhxUR3mxfDIMvpw==
+  /ts-toolbelt/6.15.5:
+    dev: true
+    resolution:
+      integrity: sha512-FZIXf1ksVyLcfr7M317jbB67XFJhOO1YqdTcuGaq9q5jLUoTikukZ+98TPjKiP2jC5CgmYdWWYs0s2nLSU0/1A==
   /xstate/4.26.1:
     dev: true
     resolution:
@@ -18,5 +40,8 @@ packages:
       integrity: sha512-daZ80A81I3/9lIydI44motWe6n59kRBfNzTuS2bfzVh1nAXi667TOTWWtatxyG+fwgNUiagSj/CWZwRRbevJIg==
 specifiers:
   '@tsconfig/recommended': ^1.0.1
+  '@types/ramda': ^0.27.61
+  fp-ts: ^2.11.5
+  ramda: ^0.27.1
   xstate: ^4.26.1
   zod: ^3.11.6
