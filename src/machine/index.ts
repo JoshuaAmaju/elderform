@@ -30,9 +30,9 @@ type Context<T extends ZodRawShape, D = any, E = Error> = {
   schema?: Schema<T>;
   errors: Map<keyof T, Error>;
   __validationMarker: Set<string>;
-  values: { [K in keyof T]: T[K] };
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
+  values: { [K in keyof T]: T[K] | null };
 };
 
 export type SetType<T extends ZodRawShape, D, E> =
@@ -44,12 +44,12 @@ export type SetType<T extends ZodRawShape, D, E> =
 
 type States<T extends ZodRawShape, D, E> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
-  | { value: 'idle'; context: Context<T, D, E> }
+  | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
   | {
       value: 'validating';
       context: Context<T, D, E> & { schema: Schema<T> };
     }
-  | { value: 'submitting'; context: Context<T, D, E> };
+  | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } };
 
 type Events<T extends ZodRawShape, D, E> =
   | { type: EventTypes.SUBMIT }
@@ -103,7 +103,11 @@ export const machine = <T extends ZodRawShape, D, E>() => {
       },
 
       states: {
-        waitingInit: {},
+        waitingInit: {
+          meta: {
+            summary: 'Wait for the machine to be initialised with a schema',
+          },
+        },
 
         idle: {
           always: {
@@ -147,6 +151,10 @@ export const machine = <T extends ZodRawShape, D, E>() => {
         },
 
         validating: {
+          exit: assign({
+            __validationMarker: (_) => new Set(),
+          }),
+
           entry: pure(({ schema, values }) => {
             return pipe(
               schema,
@@ -160,8 +168,8 @@ export const machine = <T extends ZodRawShape, D, E>() => {
 
           always: {
             target: 'submitting',
-            cond: ({ schema, __validationMarker: __doneMarker }) => {
-              return __doneMarker.size >= pipe(schema, keys, length);
+            cond: ({ schema, __validationMarker }) => {
+              return __validationMarker.size >= pipe(schema, keys, length);
             },
           },
 
@@ -273,12 +281,9 @@ export const machine = <T extends ZodRawShape, D, E>() => {
         }),
 
         mark: assign({
-          __validationMarker: (
-            { __validationMarker: __doneMarker },
-            { id }: any
-          ) => {
-            __doneMarker.add(id);
-            return __doneMarker;
+          __validationMarker: ({ __validationMarker }, { id }: any) => {
+            __validationMarker.add(id);
+            return __validationMarker;
           },
         }),
 
