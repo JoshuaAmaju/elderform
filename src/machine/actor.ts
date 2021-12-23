@@ -1,18 +1,18 @@
-import { assign, sendParent, createMachine } from 'xstate';
+import { assign, sendParent, forwardTo, createMachine } from 'xstate';
 import { ZodTypeAny } from 'zod';
 
-type Context = {
-  value?: any;
+export type Context = {
+  // value?: any;
   __firstRun: boolean;
 };
 
-type States = {
+export type States = {
   value: 'idle';
   // | 'validating';
   context: Context;
 };
 
-type Events =
+export type Events =
   | { id: string; type: 'FAIL' | 'SUCCESS' }
   | { type: 'VALIDATE'; value: any };
 
@@ -32,6 +32,7 @@ export const actor = ({
       },
 
       invoke: {
+        id: 'validator',
         src: 'validate',
         onDone: {
           target: 'idle',
@@ -53,8 +54,9 @@ export const actor = ({
 
           on: {
             VALIDATE: {
-              actions: 'setValue',
+              // actions: 'setValue',
               target: 'validating',
+              actions: forwardTo('validator'),
             },
           },
         },
@@ -88,9 +90,9 @@ export const actor = ({
       },
 
       actions: {
-        setValue: assign({
-          value: (_, { value }: any) => value,
-        }),
+        // setValue: assign({
+        //   value: (_, { value }: any) => value,
+        // }),
 
         sendFail: sendParent((_, { data }: any) => {
           return { id, type: 'FAIL', reason: data };
@@ -102,7 +104,7 @@ export const actor = ({
       },
 
       services: {
-        validate: ({ value, __firstRun }) =>
+        validate: ({ __firstRun }, { value }: any) =>
           __firstRun ? Promise.resolve() : validator.parseAsync(value),
       },
     }
