@@ -7,7 +7,7 @@ import { Schema } from '../types';
 import { actor } from './actor';
 
 enum EventTypes {
-  // RESET = 'reset',
+  SET = 'set',
   SUBMIT = 'submit',
   CHANGE = 'change',
   VALIDATE = 'validate',
@@ -35,6 +35,13 @@ type Context<T extends ZodRawShape, D = any, E = Error> = {
   states: { [K in keyof T]: ActorStates };
 };
 
+export type SetType<T extends ZodRawShape, D, E> =
+  | { name: 'data'; value: Context<T, D, E>['data'] }
+  | { name: 'values'; value: Context<T, D, E>['values'] }
+  | { name: 'error'; value: Context<T, D, E>['error'] }
+  | { name: 'errors'; value: Context<T, D, E>['errors'] }
+  | { name: 'schema'; value: Context<T, D, E>['schema'] };
+
 type States<T extends ZodRawShape, D, E> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
   | { value: 'idle'; context: Context<T, D, E> }
@@ -44,8 +51,9 @@ type States<T extends ZodRawShape, D, E> =
     }
   | { value: 'submitting'; context: Context<T, D, E> };
 
-type Events =
+type Events<T extends ZodRawShape, D, E> =
   | { type: EventTypes.SUBMIT }
+  | ({ type: EventTypes.SET } & SetType<T, D, E>)
   | {
       id: string;
       value: any;
@@ -58,7 +66,7 @@ type Events =
 const { pure, choose } = actions;
 
 export const machine = <T extends ZodRawShape, D, E>() => {
-  return createMachine<Context<T, D, E>, Events, States<T, D, E>>(
+  return createMachine<Context<T, D, E>, Events<T, D, E>, States<T, D, E>>(
     {
       initial: 'idle',
 
@@ -81,6 +89,17 @@ export const machine = <T extends ZodRawShape, D, E>() => {
         VALIDATING: {
           actions: ['setActorValidating'],
         },
+
+        [EventTypes.SET]: [
+          {
+            target: 'idle',
+            in: 'waitingInit',
+            actions: ['set', 'maybeSpawnActors'],
+          },
+          {
+            actions: 'set',
+          },
+        ],
       },
 
       states: {
@@ -190,6 +209,19 @@ export const machine = <T extends ZodRawShape, D, E>() => {
       },
 
       actions: {
+        set: assign((ctx, { name, value }: any) => {
+          return { ...ctx, [name]: value };
+        }),
+
+        maybeSpawnActors: choose([
+          {
+            actions: 'spawnActors',
+            cond: ({ schema }, { name, value }: any) => {
+              return !schema && name === 'schema' && !!value;
+            },
+          },
+        ]),
+
         spawnActors: assign({
           actors: ({ schema }) => {
             const entries = pipe(
