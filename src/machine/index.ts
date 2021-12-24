@@ -5,7 +5,7 @@ import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { Schema } from '../types';
 import { actor } from './actor';
 
-enum EventTypes {
+export enum EventTypes {
   SET = 'set',
   SUBMIT = 'submit',
   CHANGE = 'change',
@@ -55,7 +55,7 @@ export type Events<T, D = any, E = any> =
       value: any;
       type: EventTypes.CHANGE | EventTypes.CHANGE_WITH_VALIDATE;
     }
-  | { id: string; type: EventTypes.VALIDATE }
+  | { id: keyof T; type: EventTypes.VALIDATE }
   | { type: 'FAIL'; id: string; reason: any }
   | { type: 'SUCCESS' | 'VALIDATING'; id: string };
 
@@ -129,9 +129,9 @@ export const machine = <T, D = any, E = any>() => {
             [EventTypes.VALIDATE]: {
               actions: send(
                 ({ values }, { id }) => {
-                  return { value: values[id as keyof T], type: 'VALIDATE' };
+                  return { value: values[id], type: 'VALIDATE' };
                 },
-                { to: (_, { id }) => id }
+                { to: (_, { id }) => id as string }
               ),
             },
 
@@ -235,8 +235,14 @@ export const machine = <T, D = any, E = any>() => {
                 return pipe(
                   keys(s),
                   map((key) => {
-                    const validator = s[key];
-                    const act = spawn(actor({ id: key as string, validator }));
+                    const act = spawn(
+                      actor({
+                        id: key as string,
+                        validator: s[key],
+                      }),
+                      key as string
+                    );
+
                     return [key, act] as const;
                   })
                 );
