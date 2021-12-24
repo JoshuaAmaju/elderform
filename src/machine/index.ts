@@ -75,11 +75,11 @@ export const machine = <T, D = any, E = any>() => {
 
       on: {
         FAIL: {
-          actions: ['setActorFail'],
+          actions: ['setActorFail', 'setError'],
         },
 
         SUCCESS: {
-          actions: ['setActorSuccess'],
+          actions: ['setActorSuccess', 'removeError'],
         },
 
         VALIDATING: {
@@ -171,11 +171,11 @@ export const machine = <T, D = any, E = any>() => {
 
           on: {
             FAIL: {
-              actions: ['mark', 'setActorFail'],
+              actions: ['mark', 'setActorFail', 'setError'],
             },
 
             SUCCESS: {
-              actions: ['mark', 'setActorSuccess'],
+              actions: ['mark', 'setActorSuccess', 'removeError'],
             },
           },
         },
@@ -261,8 +261,8 @@ export const machine = <T, D = any, E = any>() => {
         }),
 
         setError: assign({
-          errors: ({ errors }, { id, error }: any) => {
-            errors.set(id, error);
+          errors: ({ errors }, { id, reason }: any) => {
+            errors.set(id, reason);
             return errors;
           },
         }),
