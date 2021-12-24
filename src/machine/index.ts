@@ -162,12 +162,23 @@ export const machine = <T, D = any, E = any>() => {
             );
           }),
 
-          always: {
-            target: 'submitting',
-            cond: ({ schema, __validationMarker }) => {
-              return __validationMarker.size >= pipe(schema, keys, length);
+          always: [
+            {
+              target: 'idle',
+              cond: (ctx) => {
+                return (
+                  ctx.__validationMarker.size >=
+                    pipe(ctx.schema, keys, length) && ctx.errors.size > 0
+                );
+              },
             },
-          },
+            {
+              target: 'submitting',
+              cond: ({ schema, __validationMarker }) => {
+                return __validationMarker.size >= pipe(schema, keys, length);
+              },
+            },
+          ],
 
           on: {
             FAIL: {
