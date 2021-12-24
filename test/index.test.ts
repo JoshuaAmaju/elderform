@@ -1,7 +1,26 @@
-import { sum } from '../src';
+import { machine, Context, Events, States } from '../src/machine';
+import { interpret, Interpreter } from 'xstate';
+import * as z from 'zod';
+import { Schema, TypeOf } from '../src/types';
+import { object } from '../src/utils';
 
-describe('sum', () => {
-  it('adds two numbers together', () => {
-    expect(sum(1, 1)).toEqual(2);
+const schema = object({
+  name: z.string(),
+});
+
+type Form = TypeOf<typeof schema>;
+
+describe('empty', () => {
+  let service: Interpreter<
+    Context<Form>,
+    any,
+    Events<Form, any, any>,
+    States<Form, any, any>
+  >;
+
+  service.state.context.values.name;
+
+  it('empty', (done) => {
+    done();
   });
 });
