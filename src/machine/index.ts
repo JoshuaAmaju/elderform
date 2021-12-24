@@ -21,7 +21,7 @@ enum ActorStates {
   VALIDATING = 'validating',
 }
 
-type Context<T extends ZodRawShape, D = any, E = Error> = {
+export type Context<T, D = any, E = Error> = {
   data?: D;
   error?: E;
   schema?: Schema<T>;
@@ -32,14 +32,14 @@ type Context<T extends ZodRawShape, D = any, E = Error> = {
   values: { [K in keyof T]: T[K] | null };
 };
 
-export type SetType<T extends ZodRawShape, D, E> =
+export type SetType<T, D, E> =
   | { name: 'data'; value: Context<T, D, E>['data'] }
   | { name: 'values'; value: Context<T, D, E>['values'] }
   | { name: 'error'; value: Context<T, D, E>['error'] }
   | { name: 'errors'; value: Context<T, D, E>['errors'] }
   | { name: 'schema'; value: Context<T, D, E>['schema'] };
 
-type States<T extends ZodRawShape, D, E> =
+export type States<T, D, E> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
   | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
   | {
@@ -48,7 +48,7 @@ type States<T extends ZodRawShape, D, E> =
     }
   | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } };
 
-type Events<T extends ZodRawShape, D, E> =
+export type Events<T, D, E> =
   | { type: EventTypes.SUBMIT }
   | ({ type: EventTypes.SET } & SetType<T, D, E>)
   | {
