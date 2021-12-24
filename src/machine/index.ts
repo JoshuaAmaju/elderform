@@ -2,7 +2,6 @@ import { pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/lib/Option';
 import { identity, keys, length, map } from 'ramda';
 import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
-import { ZodRawShape } from 'zod';
 import { Schema } from '../types';
 import { actor } from './actor';
 
@@ -29,7 +28,7 @@ export type Context<T, D = any, E = Error> = {
   __validationMarker: Set<string>;
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
-  values: { [K in keyof T]: T[K] | null };
+  values: { [K in keyof T]?: T[K] | null };
 };
 
 export type SetType<T, D, E> =
@@ -39,7 +38,7 @@ export type SetType<T, D, E> =
   | { name: 'errors'; value: Context<T, D, E>['errors'] }
   | { name: 'schema'; value: Context<T, D, E>['schema'] };
 
-export type States<T, D, E> =
+export type States<T, D = any, E = any> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
   | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
   | {
@@ -48,7 +47,7 @@ export type States<T, D, E> =
     }
   | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } };
 
-export type Events<T, D, E> =
+export type Events<T, D = any, E = any> =
   | { type: EventTypes.SUBMIT }
   | ({ type: EventTypes.SET } & SetType<T, D, E>)
   | {
@@ -62,7 +61,7 @@ export type Events<T, D, E> =
 
 const { pure, choose } = actions;
 
-export const machine = <T extends ZodRawShape, D, E>() => {
+export const machine = <T, D = any, E = any>() => {
   return createMachine<Context<T, D, E>, Events<T, D, E>, States<T, D, E>>(
     {
       initial: 'idle',
@@ -130,7 +129,7 @@ export const machine = <T extends ZodRawShape, D, E>() => {
             [EventTypes.VALIDATE]: {
               actions: send(
                 ({ values }, { id }) => {
-                  return { value: values[id], type: 'VALIDATE' };
+                  return { value: values[id as keyof T], type: 'VALIDATE' };
                 },
                 { to: (_, { id }) => id }
               ),
@@ -157,7 +156,7 @@ export const machine = <T extends ZodRawShape, D, E>() => {
               schema,
               keys,
               map((key) => {
-                const value = values[key];
+                const value = values[key as keyof T];
                 return send({ value, type: 'VALIDATE' }, { to: key });
               })
             );
