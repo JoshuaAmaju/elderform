@@ -1,7 +1,5 @@
-import { sum } from '../src';
-
-describe('sum', () => {
-  it('adds two numbers together', () => {
-    expect(sum(1, 1)).toEqual(2);
+describe('empty', () => {
+  it('empty', (done) => {
+    done();
   });
 });

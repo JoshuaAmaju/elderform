@@ -1,16 +1,11 @@
 import { assign, sendParent, forwardTo, createMachine } from 'xstate';
-import { ZodTypeAny } from 'zod';
+import { ZodTypeAny, ZodError } from 'zod';
 
 export type Context = {
-  // value?: any;
-  __firstRun: boolean;
+  value?: any;
 };
 
-export type States = {
-  value: 'idle';
-  // | 'validating';
-  context: Context;
-};
+export type States = { context: Context; value: 'idle' | 'validating' };
 
 export type Events =
   | { id: string; type: 'FAIL' | 'SUCCESS' }
@@ -27,72 +22,46 @@ export const actor = ({
     {
       initial: 'idle',
 
-      context: {
-        __firstRun: true,
-      },
-
-      invoke: {
-        id: 'validator',
-        src: 'validate',
-        onDone: {
-          target: 'idle',
-          cond: 'notFirstRun',
-          actions: 'sendSuccess',
-        },
-        onError: {
-          target: 'idle',
-          cond: 'notFirstRun',
-          actions: 'sendFail',
-        },
-      },
+      context: {},
 
       states: {
         idle: {
-          entry: assign({
-            __firstRun: (_) => false,
-          }),
-
           on: {
             VALIDATE: {
-              // actions: 'setValue',
+              actions: 'setValue',
               target: 'validating',
-              actions: forwardTo('validator'),
             },
           },
         },
 
-        // validating: {
-        //   on: {
-        //     VALIDATE: {
-        //       internal: false,
-        //       actions: 'setValue',
-        //       target: 'validating',
-        //     },
-        //   },
+        validating: {
+          on: {
+            VALIDATE: {
+              internal: false,
+              actions: 'setValue',
+              target: 'validating',
+            },
+          },
 
-        //   invoke: {
-        //     src: 'validate',
-        //     onDone: {
-        //       target: 'idle',
-        //       actions: 'sendSuccess',
-        //     },
-        //     onError: {
-        //       target: 'idle',
-        //       actions: 'sendFail',
-        //     },
-        //   },
-        // },
+          invoke: {
+            src: 'validate',
+            onDone: {
+              target: 'idle',
+              actions: 'sendSuccess',
+            },
+            onError: {
+              target: 'idle',
+              actions: 'sendFail',
+            },
+          },
+        },
       },
     },
     {
-      guards: {
-        notFirstRun: ({ __firstRun }) => !__firstRun,
-      },
-
       actions: {
-        // setValue: assign({
-        //   value: (_, { value }: any) => value,
-        // }),
+        setValue: assign({
+          value: (_, { value }: any) => value,
+        }),
 
         sendFail: sendParent((_, { data }: any) => {
           return { id, type: 'FAIL', reason: data };
@@ -104,8 +73,19 @@ export const actor = ({
       },
 
       services: {
-        validate: ({ __firstRun }, { value }: any) =>
-          __firstRun ? Promise.resolve() : validator.parseAsync(value),
+        validate: async ({ value }) => {
+          try {
+            return await validator.parseAsync(value);
+          } catch (e) {
+            let err = (e as Error)?.message;
+
+            // console.log('error', e);
+
+            if (e instanceof ZodError) err = e.issues[0].message;
+
+            return Promise.reject(err);
+          }
+        },
       },
     }
   );

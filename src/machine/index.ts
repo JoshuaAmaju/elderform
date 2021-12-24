@@ -11,9 +11,6 @@ enum EventTypes {
   SUBMIT = 'submit',
   CHANGE = 'change',
   VALIDATE = 'validate',
-  // CLEAR_DATA = 'clearData',
-  // CLEAR_ERROR = 'clearError',
-  // CLEAR_ERRORS = 'clearErrors',
   CHANGE_WITH_VALIDATE = 'changeWithValidate',
 }
 

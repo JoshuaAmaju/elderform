@@ -5,23 +5,50 @@ import * as z from 'zod';
 describe('actor', () => {
   let service: Interpreter<Context, any, Events, States>;
 
+  let error: any = null;
+
   beforeEach(() => {
-    service = interpret(actor({ id: '1', validator: z.string() })).start();
+    service = interpret(
+      actor({ id: '1', validator: z.string() }).withConfig({
+        actions: {
+          sendFail: (_, { data }: any) => {
+            error = data;
+          },
+          sendSuccess: () => {},
+        },
+      })
+    ).start();
+  });
+
+  beforeEach(() => {
+    error = null;
   });
 
   it('should create initialise actor', (done) => {
     service.onTransition((state) => {
-      if (state.matches('idle')) {
-        done();
-      }
+      if (state.matches('idle')) done();
     });
   });
 
-  it('should not indicate first run', (done) => {
+  it('validation should fail', (done) => {
     service.onTransition((state) => {
-      if (!state.context.__firstRun) {
+      if (state.matches('idle') && state.history?.matches('validating')) {
+        expect(error).not.toBeNull();
         done();
       }
     });
+
+    service.send({ type: 'VALIDATE', value: null });
+  });
+
+  it('validation should pass', (done) => {
+    service.onTransition((state) => {
+      if (state.matches('idle') && state.history?.matches('validating')) {
+        expect(error).toBeNull();
+        done();
+      }
+    });
+
+    service.send({ type: 'VALIDATE', value: 'Joe' });
   });
 });
