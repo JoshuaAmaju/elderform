@@ -265,10 +265,11 @@ describe('setting values', () => {
   });
 
   it('should not unset schema', (done) => {
-    service = interpret(def.withContext(ctx)).start();
+    service = interpret(def.withContext({ ...ctx, schema })).start();
 
     service.onChange((ctx) => {
       expect(ctx.schema).toBeDefined();
+      expect(ctx.schema).toMatchObject(schema);
       done();
     });
 

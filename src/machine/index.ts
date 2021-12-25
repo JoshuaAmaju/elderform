@@ -96,10 +96,12 @@ export const machine = <T, D = any, E = any>() => {
             actions: choose([
               {
                 actions: 'set',
-                cond: (_, e) => e.name === 'schema' && !!e.value,
+                cond: (_, e) => e.name !== 'schema',
               },
               {
                 actions: 'set',
+                cond: (ctx, e) =>
+                  !ctx.schema && (e.value !== null || e.value !== undefined),
               },
             ]),
           },
