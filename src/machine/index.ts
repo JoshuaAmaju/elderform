@@ -91,7 +91,7 @@ export const machine = <T, D = any, E = any>() => {
           {
             target: 'idle',
             in: 'waitingInit',
-            actions: ['set', 'maybeSpawnActors'],
+            actions: ['set', 'maybeSpawnActors', 'maybeSetInitialStates'],
           },
           {
             actions: choose([
