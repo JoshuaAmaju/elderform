@@ -1,5 +1,5 @@
-import { pipe } from 'fp-ts/lib/function';
-import * as O from 'fp-ts/lib/Option';
+import { pipe } from 'fp-ts/function';
+import * as O from 'fp-ts/Option';
 import { identity, keys, length, map } from 'ramda';
 import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { Schema } from '../types';

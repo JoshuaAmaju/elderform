@@ -1,5 +1,5 @@
-import { assign, sendParent, forwardTo, createMachine } from 'xstate';
-import { ZodTypeAny, ZodError } from 'zod';
+import { assign, createMachine, sendParent } from 'xstate';
+import { ZodError, ZodTypeAny } from 'zod';
 
 export type Context = {
   value?: any;
