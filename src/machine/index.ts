@@ -1,3 +1,4 @@
+import { flow } from 'fp-ts/lib/function';
 import { pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/Option';
 import { identity, keys, length, map } from 'ramda';
@@ -13,7 +14,7 @@ export enum EventTypes {
   CHANGE_WITH_VALIDATE = 'changeWithValidate',
 }
 
-enum ActorStates {
+export enum ActorStates {
   IDLE = 'idle',
   FAILED = 'failed',
   SUCCESS = 'success',
@@ -69,7 +70,7 @@ export const machine = <T, D = any, E = any>() => {
       entry: choose([
         {
           cond: 'hasSchema',
-          actions: 'spawnActors',
+          actions: ['spawnActors', 'setInitialStates'],
         },
       ]),
 
@@ -246,6 +247,33 @@ export const machine = <T, D = any, E = any>() => {
             },
           },
         ]),
+
+        maybeSetInitialStates: choose([
+          {
+            actions: 'setInitialStates',
+            cond: ({ states }, { name }: any) => {
+              return !states && name === 'schema';
+            },
+          },
+        ]),
+
+        setInitialStates: assign({
+          states: ({ schema }) => {
+            const entries = pipe(
+              schema,
+              O.fromNullable,
+              O.map(
+                flow(
+                  keys,
+                  map((key) => [key, ActorStates.IDLE])
+                )
+              ),
+              O.fold(() => [], identity)
+            );
+
+            return Object.fromEntries(entries);
+          },
+        }),
 
         spawnActors: assign({
           actors: ({ schema }) => {
