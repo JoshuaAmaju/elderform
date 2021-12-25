@@ -21,8 +21,8 @@ enum ActorStates {
 }
 
 export type Context<T, D = any, E = Error> = {
-  data?: D;
-  error?: E;
+  data?: D | null;
+  error?: E | null;
   schema?: Schema<T>;
   errors: Map<keyof T, Error>;
   __validationMarker: Set<string>;
@@ -36,7 +36,7 @@ export type SetType<T, D, E> =
   | { name: 'values'; value: Context<T, D, E>['values'] }
   | { name: 'error'; value: Context<T, D, E>['error'] }
   | { name: 'errors'; value: Context<T, D, E>['errors'] }
-  | { name: 'schema'; value: Context<T, D, E>['schema'] };
+  | { name: 'schema'; value: Required<Context<T, D, E>>['schema'] };
 
 export type States<T, D = any, E = any> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
@@ -93,7 +93,15 @@ export const machine = <T, D = any, E = any>() => {
             actions: ['set', 'maybeSpawnActors'],
           },
           {
-            actions: 'set',
+            actions: choose([
+              {
+                actions: 'set',
+                cond: (_, e) => e.name === 'schema' && !!e.value,
+              },
+              {
+                actions: 'set',
+              },
+            ]),
           },
         ],
       },

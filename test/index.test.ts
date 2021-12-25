@@ -263,4 +263,19 @@ describe('setting values', () => {
       value: { status: 200 },
     });
   });
+
+  it('should not unset schema', (done) => {
+    service = interpret(def.withContext(ctx)).start();
+
+    service.onChange((ctx) => {
+      expect(ctx.schema).toBeDefined();
+      done();
+    });
+
+    service.send({
+      name: 'schema',
+      value: null as any,
+      type: EventTypes.SET,
+    });
+  });
 });
