@@ -223,9 +223,44 @@ describe('setting values', () => {
     service.send({ value, name: 'values', type: EventTypes.SET });
   });
 
-  // it('should set errors', (done) => {});
+  it('should set errors', (done) => {
+    service = interpret(def.withContext(ctx)).start();
 
-  // it('should set error', (done) => {});
+    service.onChange((ctx) => {
+      expect(ctx.errors).toMatchObject(new Map([['name', new Error()]]));
+      done();
+    });
 
-  // it('should set data', (done) => {});
+    service.send({
+      name: 'errors',
+      type: EventTypes.SET,
+      value: new Map([['name', new Error()]]),
+    });
+  });
+
+  it('should set error', (done) => {
+    service = interpret(def.withContext(ctx)).start();
+
+    service.onChange((ctx) => {
+      expect(ctx.error).toBeInstanceOf(Error);
+      done();
+    });
+
+    service.send({ value: new Error(), name: 'error', type: EventTypes.SET });
+  });
+
+  it('should set data', (done) => {
+    service = interpret(def.withContext(ctx)).start();
+
+    service.onChange((ctx) => {
+      expect(ctx.data).toMatchObject({ status: 200 });
+      done();
+    });
+
+    service.send({
+      name: 'data',
+      type: EventTypes.SET,
+      value: { status: 200 },
+    });
+  });
 });
