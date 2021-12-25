@@ -1,6 +1,6 @@
 import { interpret, Interpreter } from 'xstate';
 import * as z from 'zod';
-import { Context, Events, machine, States, EventTypes } from '../src/machine';
+import { Context, Events, EventTypes, machine, States } from '../src/machine';
 import { TypeOf } from '../src/types';
 import { object } from '../src/utils';
 
@@ -15,19 +15,18 @@ const def = machine<Form, any, any>();
 const ctx: Context<Form, any, any> = {
   ...def.context,
   values: {},
-  errors: new Map(),
 };
 
-describe('machine', () => {
-  let service: Interpreter<
-    Context<Form, any, any>,
-    any,
-    Events<Form, any, any>,
-    States<Form, any, any>
-  >;
+let service: Interpreter<
+  Context<Form, any, any>,
+  any,
+  Events<Form, any, any>,
+  States<Form, any, any>
+>;
 
+describe('machine', () => {
   beforeEach(() => {
-    service = interpret(def.withContext(ctx)).start();
+    service = interpret(def.withContext({ ...ctx, errors: new Map() })).start();
   });
 
   it('should initialise to waitingInit state given no schema provided', (done) => {
@@ -37,7 +36,9 @@ describe('machine', () => {
   });
 
   it('should initialise to idle state', (done) => {
-    service = interpret(def.withContext({ ...ctx, schema })).start();
+    service = interpret(
+      def.withContext({ ...ctx, schema, errors: new Map() })
+    ).start();
 
     service.onTransition((state) => {
       if (state.matches('idle')) done();
@@ -54,7 +55,7 @@ describe('machine', () => {
 
     setTimeout(() => {
       service.send({ type: EventTypes.SET, name: 'schema', value: schema });
-    }, 2000);
+    }, 1000);
   });
 
   it('should have default values', (done) => {
@@ -62,6 +63,7 @@ describe('machine', () => {
       def.withContext({
         ...ctx,
         schema,
+        errors: new Map(),
         values: { name: 'Joe' },
       })
     ).start();
@@ -72,50 +74,158 @@ describe('machine', () => {
       done();
     });
   });
+});
 
-  describe('field validation', () => {
-    beforeEach(() => {
-      service = interpret(def.withContext({ ...ctx, schema })).start();
-    });
-
-    it('should validate field with error', (done) => {
-      service.onTransition(({ context }, e) => {
-        if (e.type === 'FAIL') {
-          expect(context.errors.get('name')).toBeDefined();
-          done();
-        }
-      });
-
-      service.send({ type: EventTypes.VALIDATE, id: 'name' });
-    });
-
-    it('should validate field without error', (done) => {
-      service.onTransition(({ context }, e) => {
-        if (e.type === 'SUCCESS') {
-          expect(context.errors.get('name')).not.toBeDefined();
-          done();
-        }
-      });
-
-      service.send({
-        id: 'name',
-        value: 'Joe',
-        type: EventTypes.CHANGE_WITH_VALIDATE,
-      });
-    });
+describe('field validation', () => {
+  beforeEach(() => {
+    service = interpret(
+      def.withContext({ ...ctx, schema, errors: new Map() })
+    ).start();
   });
 
-  describe('submission', () => {
-    it('should submit without error', (done) => {
-      service = interpret(
-        def.withContext({ ...ctx, schema }).withConfig({
-          services: {
-            submit: () => Promise.resolve({}),
-          },
-        })
-      ).start();
+  it('should validate field with error', (done) => {
+    service.onTransition(({ context }, e) => {
+      if (e.type === 'FAIL') {
+        expect(context.errors.get('name')).toBeDefined();
+        done();
+      }
     });
 
-    it('should submit with error', (done) => {});
+    service.send({ type: EventTypes.VALIDATE, id: 'name' });
   });
+
+  it('should validate field without error', (done) => {
+    service.onTransition(({ context }, e) => {
+      if (e.type === 'SUCCESS') {
+        expect(context.errors.get('name')).not.toBeDefined();
+        done();
+      }
+    });
+
+    service.send({
+      id: 'name',
+      value: 'Joe',
+      type: EventTypes.CHANGE_WITH_VALIDATE,
+    });
+  });
+});
+
+describe('submission', () => {
+  let _ctx: Context<Form>;
+
+  beforeEach(() => {
+    _ctx = {
+      ...ctx,
+      schema,
+      errors: new Map(),
+      __validationMarker: new Set(),
+    };
+  });
+
+  it('should submit without error', (done) => {
+    service = interpret(
+      def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
+        services: {
+          submit: () => Promise.resolve({}),
+        },
+      })
+    ).start();
+
+    service.onTransition((state) => {
+      if (state.matches('idle') && state.history?.matches('submitting')) {
+        expect(state.context.error).not.toBeDefined();
+        done();
+      }
+    });
+
+    service.send(EventTypes.SUBMIT);
+  });
+
+  it('should submit with error', (done) => {
+    service = interpret(
+      def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
+        services: {
+          submit: () => Promise.reject(new Error()),
+        },
+      })
+    ).start();
+
+    service.onTransition((state, e) => {
+      if (state.matches('idle') && state.history?.matches('submitting')) {
+        expect(state.context.error).toBeDefined();
+        expect(state.context.error).toBeInstanceOf(Error);
+        done();
+      }
+    });
+
+    service.send(EventTypes.SUBMIT);
+  });
+
+  it('should not submit due to validation error', (done) => {
+    service = interpret(def.withContext(_ctx)).start();
+
+    service.onTransition((state) => {
+      if (state.matches('idle') && state.history?.matches('validating')) {
+        expect(state.context.errors.get('name')).toBeDefined();
+        done();
+      }
+    });
+
+    service.send(EventTypes.SUBMIT);
+  });
+
+  it('should bailout on submission if any field has error', (done) => {
+    service = interpret(
+      def.withContext(_ctx).withConfig({
+        actions: {
+          onSubmitWithErrors: () => done(),
+        },
+      })
+    ).start();
+
+    service.onTransition((_, e) => {
+      if (e.type === 'FAIL') service.send(EventTypes.SUBMIT);
+    });
+
+    service.send({ id: 'name', type: EventTypes.VALIDATE });
+  });
+});
+
+describe('setting values', () => {
+  beforeEach(() => {
+    service = interpret(def.withContext(ctx)).start();
+  });
+
+  it('should set values', (done) => {
+    const schema = object({
+      age: z.number(),
+      name: z.string(),
+    });
+
+    type Form = TypeOf<typeof schema>;
+
+    const def = machine<Form, any, any>();
+
+    const ctx: Context<Form, any, any> = {
+      ...def.context,
+      values: {},
+    };
+
+    let value: Form = { age: 20, name: 'John' };
+
+    let service = interpret(def.withContext({ ...ctx, schema })).start();
+
+    service.onChange((ctx) => {
+      expect(ctx.values).toMatchObject(value);
+      done();
+    });
+
+    service.send({ value, name: 'values', type: EventTypes.SET });
+  });
+
+  // it('should set errors', (done) => {});
+
+  // it('should set error', (done) => {});
+
+  // it('should set data', (done) => {});
 });

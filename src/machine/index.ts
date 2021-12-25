@@ -167,8 +167,8 @@ export const machine = <T, D = any, E = any>() => {
               target: 'idle',
               cond: (ctx) => {
                 return (
-                  ctx.__validationMarker.size >=
-                    pipe(ctx.schema, keys, length) && ctx.errors.size > 0
+                  ctx.errors.size > 0 &&
+                  ctx.__validationMarker.size >= pipe(ctx.schema, keys, length)
                 );
               },
             },
@@ -285,13 +285,13 @@ export const machine = <T, D = any, E = any>() => {
           },
         }),
 
-        clearErrors: assign({
-          errors: (_) => new Map(),
-        }),
+        // clearErrors: assign({
+        //   errors: (_) => new Map(),
+        // }),
 
-        clearValues: assign({
-          values: (_) => ({} as T),
-        }),
+        // clearValues: assign({
+        //   values: (_) => ({} as T),
+        // }),
 
         mark: assign({
           __validationMarker: ({ __validationMarker }, { id }: any) => {
