@@ -89,6 +89,12 @@ export const machine = <T, D = any, E = any>() => {
           actions: ['setActorValidating'],
         },
 
+        // enter idle state if change is sent while in another state
+        [EventTypes.CHANGE]: {
+          target: 'idle',
+          actions: 'setValue',
+        },
+
         [EventTypes.SET]: [
           {
             target: 'idle',
@@ -109,11 +115,6 @@ export const machine = <T, D = any, E = any>() => {
             ]),
           },
         ],
-
-        [EventTypes.CHANGE]: {
-          target: 'idle',
-          actions: 'setValue',
-        },
       },
 
       states: {
@@ -130,9 +131,9 @@ export const machine = <T, D = any, E = any>() => {
           },
 
           on: {
-            // [EventTypes.CHANGE]: {
-            //   actions: 'setValue',
-            // },
+            [EventTypes.CHANGE]: {
+              actions: 'setValue',
+            },
 
             [EventTypes.SUBMIT]: [
               {
@@ -221,13 +222,13 @@ export const machine = <T, D = any, E = any>() => {
           invoke: {
             src: 'submit',
             onDone: {
-              target: 'submitted',
+              target: 'idle',
               actions: assign({
                 data: (_, { data }) => data,
               }),
             },
             onError: {
-              target: 'error',
+              target: 'idle',
               actions: assign({
                 error: (_, { data }) => data,
               }),
