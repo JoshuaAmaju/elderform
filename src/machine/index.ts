@@ -25,6 +25,8 @@ export type Context<T, D = any, E = Error> = {
   data?: D | null;
   error?: E | null;
   schema?: Schema<T>;
+  dataUpdatedAt?: Date;
+  errorUpdatedAt?: Date;
   errors: Map<keyof T, Error>;
   __validationMarker: Set<string>;
   actors: { [K: string]: ActorRef<any> };
@@ -225,12 +227,14 @@ export const machine = <T, D = any, E = any>() => {
               target: 'submitted',
               actions: assign({
                 data: (_, { data }) => data,
+                dataUpdatedAt: (_) => new Date(),
               }),
             },
             onError: {
               target: 'error',
               actions: assign({
                 error: (_, { data }) => data,
+                errorUpdatedAt: (_) => new Date(),
               }),
             },
           },

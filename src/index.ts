@@ -53,12 +53,10 @@ type SubscriptionValue<T, D, E> = FormPartial<T, D, E> & {
   submittedWithError?: boolean;
   validatedWithErrors?: boolean;
   submittedWithoutError?: boolean;
-} & Pick<Context<T, D, E>, 'data' | 'error' | 'errors' | 'values'>;
+} & Partial<Record<'dataUpdatedAt' | 'errorUpdatedAt', Date>> &
+  Pick<Context<T, D, E>, 'data' | 'error' | 'errors' | 'values'>;
 
 type Form<T, D, E> = FormPartial<T, D, E> & {
-  //   service: () => Observable<
-  //     State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>
-  //   >;
   submit(): void;
   state: FormState;
   subscribe: (fn: (val: SubscriptionValue<T, D, E>) => void) => Subscription;
@@ -146,7 +144,9 @@ const create = <T, D, E>({
     submit: () => __service.send(EventTypes.SUBMIT),
     subscribe: (fn) => {
       return $service.subscribe((_state) => {
-        const { data, error, errors, values } = _state.context;
+        const { data, error, errors, values, dataUpdatedAt, errorUpdatedAt } =
+          _state.context;
+
         const handlers = generate(_state.context);
 
         const isError = _state.matches('error');
@@ -175,6 +175,9 @@ const create = <T, D, E>({
           errors,
           values,
           handlers,
+
+          dataUpdatedAt,
+          errorUpdatedAt,
 
           // form states
           isIdle,
