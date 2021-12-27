@@ -12,7 +12,6 @@ import {
   machine,
   States,
 } from '../src/machine';
-import { Config } from './types';
 
 export { TypeOf } from './types';
 export { object } from './utils';
@@ -71,11 +70,17 @@ type Form<T, D, E> = FormPartial<T, D, E> & {
   >;
 };
 
+export type Config<T, D = any, E = Error> = {
+  onSubmit: (value: T) => Promise<D>;
+  schema?: Context<T, D, E>['schema'];
+  initialValues?: { [K in keyof T]: T[K] };
+};
+
 const create = <T, D, E>({
   schema,
   onSubmit,
   initialValues,
-}: Config<T, D>): Form<T, D, E> => {
+}: Config<T, D, E>): Form<T, D, E> => {
   const def = machine<T, D, E>();
 
   const __service = interpret(
