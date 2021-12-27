@@ -1,23 +1,21 @@
-import { interpret, Interpreter, State } from 'xstate';
+import { flow, pipe } from 'fp-ts/lib/function';
+import * as O from 'fp-ts/Option';
+import { identity, keys, map } from 'ramda';
+import { from, Subscription } from 'rxjs';
+import { interpret, Interpreter } from 'xstate';
 import * as z from 'zod';
-import { from, Observable, Subscription } from 'rxjs';
 import {
+  ActorStates,
   Context,
   Events,
   EventTypes,
   machine,
   States,
-  ActorStates,
 } from '../src/machine';
 import { Config } from './types';
-import { pipe } from 'fp-ts/lib/function';
-import * as O from 'fp-ts/Option';
-import { identity, keys, map } from 'ramda';
-import { flow } from 'fp-ts/lib/function';
 
 export { TypeOf } from './types';
 export { object } from './utils';
-
 export { z };
 
 type Handler<T> = {
