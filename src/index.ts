@@ -33,14 +33,34 @@ type FormPartial<T, D, E> = {
   handlers: { [K in keyof T]: Handler<T[K]> };
 };
 
-type SubscriptionValue<T, D, E> = FormPartial<T, D, E> &
-  Pick<Context<T, D, E>, 'data' | 'error' | 'errors' | 'values'>;
+type FormState =
+  | 'idle'
+  | 'validating'
+  | 'validatedWithErrors'
+  | 'submitting'
+  | 'submitted'
+  | 'submittedWithError'
+  | 'error';
+
+type SubscriptionValue<T, D, E> = FormPartial<T, D, E> & {
+  state: FormState;
+  isIdle: boolean;
+  isError: boolean;
+  submitted: boolean;
+  isSuccess: boolean;
+  isValidating: boolean;
+  isSubmitting: boolean;
+  submittedWithError?: boolean;
+  validatedWithErrors?: boolean;
+  submittedWithoutError?: boolean;
+} & Pick<
+    Context<T, D, E>,
+    'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
+  >;
 
 type Form<T, D, E> = FormPartial<T, D, E> & {
-  //   service: () => Observable<
-  //     State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>
-  //   >;
   submit(): void;
+  state: FormState;
   subscribe: (fn: (val: SubscriptionValue<T, D, E>) => void) => Subscription;
   __generate: Generate<T, D, E>;
   __service: Interpreter<
@@ -63,6 +83,8 @@ const create = <T, D, E>({
       .withContext({
         ...def.context,
         schema,
+        dataUpdatedAt: 0,
+        errorUpdatedAt: 0,
         errors: new Map(),
         values: initialValues ?? {},
         __validationMarker: new Set(),
@@ -76,7 +98,9 @@ const create = <T, D, E>({
 
   const $service = from(__service);
 
-  const ctx = __service.initialState.context;
+  const { initialState } = __service;
+
+  const ctx = initialState.context;
 
   const generate: Form<T, D, E>['__generate'] = ({
     states,
@@ -85,6 +109,7 @@ const create = <T, D, E>({
     const entries = pipe(
       schema,
       O.fromNullable,
+      O.filter((s) => s !== false),
       O.map(
         flow(
           keys,
@@ -119,13 +144,57 @@ const create = <T, D, E>({
   return {
     __service,
     __generate: generate,
+    state: 'idle',
     handlers: generate(ctx),
     submit: () => __service.send(EventTypes.SUBMIT),
     subscribe: (fn) => {
-      return $service.subscribe((state) => {
-        const { data, error, errors, values } = state.context;
-        const handlers = generate(state.context);
-        fn({ data, error, errors, values, handlers });
+      return $service.subscribe((_state) => {
+        const { data, error, errors, values, dataUpdatedAt, errorUpdatedAt } =
+          _state.context;
+
+        const handlers = generate(_state.context);
+
+        const isError = _state.matches('error');
+        const submitted = _state.matches('submitted');
+        const isSubmitting = _state.matches('submitting');
+        const isValidating = _state.matches('validating');
+        const isIdle = _state.matches('idle') || _state.matches('waitingInit');
+
+        const submittedWithoutError = submitted && !error;
+        const submittedWithError = isError && !!error;
+        const validatedWithErrors =
+          isIdle && _state.history?.matches('validating') && errors.size > 0;
+
+        const state: FormState = _state.matches('waitingInit')
+          ? 'idle'
+          : validatedWithErrors
+          ? 'validatedWithErrors'
+          : _state.matches('error')
+          ? 'submittedWithError'
+          : (_state.value as FormState);
+
+        fn({
+          data,
+          error,
+          state,
+          errors,
+          values,
+          handlers,
+
+          dataUpdatedAt,
+          errorUpdatedAt,
+
+          // form states
+          isIdle,
+          isError,
+          submitted,
+          isValidating,
+          isSubmitting,
+          submittedWithError,
+          validatedWithErrors,
+          isSuccess: submitted,
+          submittedWithoutError,
+        });
       });
     },
   };

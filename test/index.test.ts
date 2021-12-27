@@ -132,8 +132,8 @@ describe('submission', () => {
     ).start();
 
     service.onTransition((state) => {
-      if (state.matches('idle') && state.history?.matches('submitting')) {
-        expect(state.context.error).not.toBeDefined();
+      if (state.matches('submitted')) {
+        expect(state.context.error).toBeNull();
         done();
       }
     });
@@ -151,7 +151,7 @@ describe('submission', () => {
     ).start();
 
     service.onTransition((state, e) => {
-      if (state.matches('idle') && state.history?.matches('submitting')) {
+      if (state.matches('error')) {
         expect(state.context.error).toBeDefined();
         expect(state.context.error).toBeInstanceOf(Error);
         done();
@@ -278,5 +278,44 @@ describe('setting values', () => {
       value: null as any,
       type: EventTypes.SET,
     });
+  });
+});
+
+describe('disable schema', () => {
+  beforeEach(() => {
+    service = interpret(def.withContext({ ...ctx, schema: false })).start();
+  });
+
+  it('should disable schema and not create actors', (done) => {
+    service.onTransition((state) => {
+      expect(state.value).toBe('idle');
+      expect(state.context.schema).toBe(false);
+      expect(state.context.actors).toBeUndefined();
+      expect(state.context.states).toBeUndefined();
+      done();
+    });
+  });
+
+  it('should never validate', (done) => {
+    service = interpret(
+      def
+        .withContext({
+          ...ctx,
+          schema: false,
+          errors: new Map(),
+        })
+        .withConfig({
+          services: {
+            submit: () => Promise.resolve({}),
+          },
+        })
+    ).start();
+
+    service.onTransition((state) => {
+      expect(state.matches('validating')).toBe(false);
+      if (state.matches('submitted')) done();
+    });
+
+    service.send(EventTypes.SUBMIT);
   });
 });
