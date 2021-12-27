@@ -46,7 +46,9 @@ export type States<T, D = any, E = any> =
       value: 'validating';
       context: Context<T, D, E> & { schema: Schema<T> };
     }
-  | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } };
+  | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } }
+  | { value: 'submitted'; context: Context<T, D, E> & { data: D } }
+  | { value: 'error'; context: Context<T, D, E> & { error: E } };
 
 export type Events<T, D = any, E = any> =
   | { type: EventTypes.SUBMIT }
@@ -107,6 +109,11 @@ export const machine = <T, D = any, E = any>() => {
             ]),
           },
         ],
+
+        [EventTypes.CHANGE]: {
+          target: 'idle',
+          actions: 'setValue',
+        },
       },
 
       states: {
@@ -123,9 +130,9 @@ export const machine = <T, D = any, E = any>() => {
           },
 
           on: {
-            [EventTypes.CHANGE]: {
-              actions: 'setValue',
-            },
+            // [EventTypes.CHANGE]: {
+            //   actions: 'setValue',
+            // },
 
             [EventTypes.SUBMIT]: [
               {
@@ -214,19 +221,23 @@ export const machine = <T, D = any, E = any>() => {
           invoke: {
             src: 'submit',
             onDone: {
-              target: 'idle',
+              target: 'submitted',
               actions: assign({
                 data: (_, { data }) => data,
               }),
             },
             onError: {
-              target: 'idle',
+              target: 'error',
               actions: assign({
                 error: (_, { data }) => data,
               }),
             },
           },
         },
+
+        submitted: {},
+
+        error: {},
       },
     },
     {
