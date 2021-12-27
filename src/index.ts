@@ -109,6 +109,7 @@ const create = <T, D, E>({
     const entries = pipe(
       schema,
       O.fromNullable,
+      O.filter((s) => s !== false),
       O.map(
         flow(
           keys,
