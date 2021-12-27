@@ -132,7 +132,7 @@ describe('submission', () => {
     ).start();
 
     service.onTransition((state) => {
-      if (state.matches('idle') && state.history?.matches('submitting')) {
+      if (state.matches('submitted')) {
         expect(state.context.error).not.toBeDefined();
         done();
       }
@@ -151,7 +151,7 @@ describe('submission', () => {
     ).start();
 
     service.onTransition((state, e) => {
-      if (state.matches('idle') && state.history?.matches('submitting')) {
+      if (state.matches('error')) {
         expect(state.context.error).toBeDefined();
         expect(state.context.error).toBeInstanceOf(Error);
         done();

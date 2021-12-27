@@ -24,10 +24,10 @@ export enum ActorStates {
 export type Context<T, D = any, E = Error> = {
   data?: D | null;
   error?: E | null;
-  schema?: Schema<T>;
   dataUpdatedAt?: Date;
   errorUpdatedAt?: Date;
   errors: Map<keyof T, Error>;
+  schema?: Schema<T> | boolean;
   __validationMarker: Set<string>;
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
@@ -129,7 +129,7 @@ export const machine = <T, D = any, E = any>() => {
         idle: {
           always: {
             target: 'waitingInit',
-            cond: ({ schema }) => !schema,
+            cond: ({ schema }) => !schema && schema !== false,
           },
 
           on: {
@@ -144,10 +144,15 @@ export const machine = <T, D = any, E = any>() => {
               },
               {
                 target: 'validating',
+                cond: 'hasSchema',
+              },
+              {
+                target: 'submitting',
               },
             ],
 
             [EventTypes.VALIDATE]: {
+              cond: 'hasSchema',
               actions: send(
                 ({ values }, { id }) => {
                   return { value: values[id], type: 'VALIDATE' };
@@ -157,6 +162,7 @@ export const machine = <T, D = any, E = any>() => {
             },
 
             [EventTypes.CHANGE_WITH_VALIDATE]: {
+              cond: 'hasSchema',
               actions: [
                 'setValue',
                 send((_, { value }) => ({ value, type: 'VALIDATE' }), {
@@ -213,13 +219,18 @@ export const machine = <T, D = any, E = any>() => {
         },
 
         submitting: {
-          exit: assign({
-            states: ({ schema }) => {
-              return Object.fromEntries(
-                keys(schema).map((key) => [key, ActorStates.IDLE] as const)
-              ) as Context<T, D, E>['states'];
+          exit: choose([
+            {
+              cond: 'hasSchema',
+              actions: assign({
+                states: ({ schema }) => {
+                  return Object.fromEntries(
+                    keys(schema).map((key) => [key, ActorStates.IDLE] as const)
+                  ) as Context<T, D, E>['states'];
+                },
+              }),
             },
-          }),
+          ]),
 
           invoke: {
             src: 'submit',
@@ -251,7 +262,7 @@ export const machine = <T, D = any, E = any>() => {
     },
     {
       guards: {
-        hasSchema: ({ schema }) => !!schema,
+        hasSchema: ({ schema }) => schema !== false && !!schema,
       },
 
       actions: {
@@ -263,7 +274,7 @@ export const machine = <T, D = any, E = any>() => {
           {
             actions: 'spawnActors',
             cond: ({ schema }, { name, value }: any) => {
-              return !schema && name === 'schema' && !!value;
+              return !schema && name === 'schema' && !!value && value !== false;
             },
           },
         ]),
@@ -271,8 +282,8 @@ export const machine = <T, D = any, E = any>() => {
         maybeSetInitialStates: choose([
           {
             actions: 'setInitialStates',
-            cond: ({ states }, { name }: any) => {
-              return !states && name === 'schema';
+            cond: ({ states }, { name, value }: any) => {
+              return !states && name === 'schema' && value !== false;
             },
           },
         ]),
@@ -300,6 +311,7 @@ export const machine = <T, D = any, E = any>() => {
             const entries = pipe(
               schema,
               O.fromNullable,
+              O.filter((s) => s !== false),
               O.map((s) => {
                 return pipe(
                   keys(s),
@@ -307,7 +319,7 @@ export const machine = <T, D = any, E = any>() => {
                     const act = spawn(
                       actor({
                         id: key as string,
-                        validator: s[key],
+                        validator: (s as Schema)[key],
                       }),
                       key as string
                     );
