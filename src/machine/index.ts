@@ -222,13 +222,13 @@ export const machine = <T, D = any, E = any>() => {
           invoke: {
             src: 'submit',
             onDone: {
-              target: 'idle',
+              target: 'submitted',
               actions: assign({
                 data: (_, { data }) => data,
               }),
             },
             onError: {
-              target: 'idle',
+              target: 'error',
               actions: assign({
                 error: (_, { data }) => data,
               }),
@@ -238,7 +238,11 @@ export const machine = <T, D = any, E = any>() => {
 
         submitted: {},
 
-        error: {},
+        error: {
+          on: {
+            [EventTypes.SUBMIT]: 'submitting',
+          },
+        },
       },
     },
     {

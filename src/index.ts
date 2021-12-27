@@ -149,18 +149,20 @@ const create = <T, D, E>({
         const { data, error, errors, values } = _state.context;
         const handlers = generate(_state.context);
 
-        const isIdle = _state.matches('idle');
         const isError = _state.matches('error');
         const submitted = _state.matches('submitted');
         const isSubmitting = _state.matches('submitting');
         const isValidating = _state.matches('validating');
+        const isIdle = _state.matches('idle') || _state.matches('waitingInit');
 
         const submittedWithoutError = submitted && !error;
         const submittedWithError = isError && !!error;
         const validatedWithErrors =
           isIdle && _state.history?.matches('validating') && errors.size > 0;
 
-        const state: FormState = validatedWithErrors
+        const state: FormState = _state.matches('waitingInit')
+          ? 'idle'
+          : validatedWithErrors
           ? 'validatedWithErrors'
           : _state.matches('error')
           ? 'submittedWithError'
