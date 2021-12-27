@@ -53,8 +53,10 @@ type SubscriptionValue<T, D, E> = FormPartial<T, D, E> & {
   submittedWithError?: boolean;
   validatedWithErrors?: boolean;
   submittedWithoutError?: boolean;
-} & Partial<Record<'dataUpdatedAt' | 'errorUpdatedAt', Date>> &
-  Pick<Context<T, D, E>, 'data' | 'error' | 'errors' | 'values'>;
+} & Pick<
+    Context<T, D, E>,
+    'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
+  >;
 
 type Form<T, D, E> = FormPartial<T, D, E> & {
   submit(): void;
@@ -81,6 +83,8 @@ const create = <T, D, E>({
       .withContext({
         ...def.context,
         schema,
+        dataUpdatedAt: 0,
+        errorUpdatedAt: 0,
         errors: new Map(),
         values: initialValues ?? {},
         __validationMarker: new Set(),

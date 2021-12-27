@@ -24,8 +24,8 @@ export enum ActorStates {
 export type Context<T, D = any, E = Error> = {
   data?: D | null;
   error?: E | null;
-  dataUpdatedAt?: Date;
-  errorUpdatedAt?: Date;
+  dataUpdatedAt?: number;
+  errorUpdatedAt?: number;
   errors: Map<keyof T, Error>;
   schema?: Schema<T> | boolean;
   __validationMarker: Set<string>;
@@ -219,6 +219,11 @@ export const machine = <T, D = any, E = any>() => {
         },
 
         submitting: {
+          entry: assign({
+            data: (_) => null,
+            error: (_) => null,
+          }),
+
           exit: choose([
             {
               cond: 'hasSchema',
@@ -238,14 +243,14 @@ export const machine = <T, D = any, E = any>() => {
               target: 'submitted',
               actions: assign({
                 data: (_, { data }) => data,
-                dataUpdatedAt: (_) => new Date(),
+                dataUpdatedAt: (_) => Date.now(),
               }),
             },
             onError: {
               target: 'error',
               actions: assign({
                 error: (_, { data }) => data,
-                errorUpdatedAt: (_) => new Date(),
+                errorUpdatedAt: (_) => Date.now(),
               }),
             },
           },
