@@ -1,6 +1,6 @@
 import { interpret, Interpreter, State } from 'xstate';
 import * as z from 'zod';
-import { from, Observable } from 'rxjs';
+import { from, Observable, Subscription } from 'rxjs';
 import {
   Context,
   Events,
@@ -26,19 +26,31 @@ type Handler<T> = {
   setWithValidate: (value: T) => void;
 };
 
-type Form<T, D, E> = {
+type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
+  [K in keyof T]: Handler<T[K]>;
+};
+
+type FormPartial<T, D, E> = {
+  //   generate: Generate<T, D, E>;
+  handlers: { [K in keyof T]: Handler<T[K]> };
+};
+
+type SubscriptionValue<T, D, E> = FormPartial<T, D, E> &
+  Pick<Context<T, D, E>, 'data' | 'error' | 'errors' | 'values'>;
+
+type Form<T, D, E> = FormPartial<T, D, E> & {
   //   service: () => Observable<
   //     State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>
   //   >;
+  submit(): void;
+  subscribe: (fn: (val: SubscriptionValue<T, D, E>) => void) => Subscription;
+  __generate: Generate<T, D, E>;
   __service: Interpreter<
     Context<T, D, E>,
     any,
     Events<T, D, E>,
     States<T, D, E>
   >;
-  submit(): void;
-  handlers: { [K in keyof T]: Handler<T[K]> };
-  generate(): { [K in keyof T]: Handler<T[K]> };
 };
 
 const create = <T, D, E>({
@@ -64,9 +76,14 @@ const create = <T, D, E>({
       })
   ).start();
 
-  const generate: Form<T, D, E>['generate'] = () => {
-    const { states } = __service.initialState.context;
+  const $service = from(__service);
 
+  const ctx = __service.initialState.context;
+
+  const generate: Form<T, D, E>['__generate'] = ({
+    states,
+    schema,
+  }: Context<T, D, E>) => {
     const entries = pipe(
       schema,
       O.fromNullable,
@@ -102,11 +119,17 @@ const create = <T, D, E>({
   };
 
   return {
-    generate,
     __service,
-    // service: () => from(__service),
-    handlers: generate(),
+    __generate: generate,
+    handlers: generate(ctx),
     submit: () => __service.send(EventTypes.SUBMIT),
+    subscribe: (fn) => {
+      return $service.subscribe((state) => {
+        const { data, error, errors, values } = state.context;
+        const handlers = generate(state.context);
+        fn({ data, error, errors, values, handlers });
+      });
+    },
   };
 };
 
