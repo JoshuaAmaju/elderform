@@ -24,7 +24,7 @@ type Handler<T> = {
   setWithValidate: (value: T) => void;
 };
 
-type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
+type Generate<T extends z.ZodRawShape, D, E> = (ctx: Context<T, D, E>) => {
   [K in keyof T]: Handler<T[K]>;
 };
 
@@ -42,7 +42,7 @@ type FormState =
   | 'submittedWithError'
   | 'error';
 
-type SubscriptionValue<T, D, E> = FormPartial<T, D, E> & {
+type SubscriptionValue<T extends z.ZodRawShape, D, E> = FormPartial<T, D, E> & {
   state: FormState;
   isIdle: boolean;
   isError: boolean;
@@ -58,7 +58,7 @@ type SubscriptionValue<T, D, E> = FormPartial<T, D, E> & {
     'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
   >;
 
-type Form<T, D, E> = FormPartial<T, D, E> & {
+type Form<T extends z.ZodRawShape, D, E> = FormPartial<T, D, E> & {
   submit(): void;
   state: FormState;
   subscribe: (fn: (val: SubscriptionValue<T, D, E>) => void) => Subscription;
@@ -71,13 +71,13 @@ type Form<T, D, E> = FormPartial<T, D, E> & {
   >;
 };
 
-export type Config<T, D = any, E = Error> = {
+export type Config<T extends z.ZodRawShape, D = any, E = Error> = {
   onSubmit: (value: T) => Promise<D>;
   schema?: Context<T, D, E>['schema'];
   initialValues?: { [K in keyof T]: T[K] };
 };
 
-const create = <T, D, E>({
+const create = <T extends z.ZodRawShape, D, E>({
   schema,
   onSubmit,
   initialValues,
@@ -116,7 +116,7 @@ const create = <T, D, E>({
     const entries = pipe(
       schema,
       O.fromNullable,
-      O.filter((s) => s !== false),
+      O.filter((s) => typeof s !== 'boolean'),
       O.map(
         flow(
           keys,

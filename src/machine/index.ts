@@ -5,6 +5,9 @@ import { identity, keys, length, map, values } from 'ramda';
 import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { Schema } from '../types';
 import { actor } from './actor';
+import * as z from 'zod';
+
+z.object({ age: z.string() }).shape.age;
 
 export enum EventTypes {
   SET = 'set',
@@ -21,27 +24,27 @@ export enum ActorStates {
   VALIDATING = 'validating',
 }
 
-export type Context<T, D = any, E = Error> = {
+export type Context<T extends z.ZodRawShape, D = any, E = Error> = {
   data?: D | null;
   error?: E | null;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
   errors: Map<keyof T, Error>;
-  schema?: Schema<T> | boolean;
   __validationMarker: Set<string>;
+  schema?: z.ZodObject<T> | boolean;
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
   values: { [K in keyof T]?: T[K] | null };
 };
 
-export type SetType<T, D, E> =
+export type SetType<T extends z.ZodRawShape, D, E> =
   | { name: 'data'; value: Context<T, D, E>['data'] }
   | { name: 'values'; value: Context<T, D, E>['values'] }
   | { name: 'error'; value: Context<T, D, E>['error'] }
   | { name: 'errors'; value: Context<T, D, E>['errors'] }
   | { name: 'schema'; value: Required<Context<T, D, E>>['schema'] };
 
-export type States<T, D = any, E = any> =
+export type States<T extends z.ZodRawShape, D = any, E = any> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
   | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
   | {
@@ -52,7 +55,7 @@ export type States<T, D = any, E = any> =
   | { value: 'submitted'; context: Context<T, D, E> & { data: D } }
   | { value: 'error'; context: Context<T, D, E> & { error: E } };
 
-export type Events<T, D = any, E = any> =
+export type Events<T extends z.ZodRawShape, D = any, E = any> =
   | { type: EventTypes.SUBMIT }
   | ({ type: EventTypes.SET } & SetType<T, D, E>)
   | {
@@ -66,7 +69,7 @@ export type Events<T, D = any, E = any> =
 
 const { pure, choose } = actions;
 
-export const machine = <T, D = any, E = any>() => {
+export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
   return createMachine<Context<T, D, E>, Events<T, D, E>, States<T, D, E>>(
     {
       initial: 'idle',
@@ -317,15 +320,17 @@ export const machine = <T, D = any, E = any>() => {
             const entries = pipe(
               schema,
               O.fromNullable,
-              O.filter((s) => s !== false),
+              O.filter((s) => typeof s !== 'boolean'),
               O.map((s) => {
+                const shape = (s as z.ZodObject<T>).shape;
+
                 return pipe(
-                  keys(s),
+                  keys(shape),
                   map((key) => {
                     const act = spawn(
                       actor({
                         id: key as string,
-                        validator: (s as Schema)[key],
+                        validator: shape[key],
                       }),
                       key as string
                     );
