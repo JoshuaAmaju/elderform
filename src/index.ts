@@ -12,13 +12,13 @@ import {
   machine,
   States,
 } from '../src/machine';
-import { Config } from './types';
 
 export { TypeOf } from './types';
 export { object } from './utils';
 export { z };
 
 type Handler<T> = {
+  value?: T | null;
   state: ActorStates;
   set: (value: T) => void;
   setWithValidate: (value: T) => void;
@@ -71,11 +71,17 @@ type Form<T, D, E> = FormPartial<T, D, E> & {
   >;
 };
 
+export type Config<T, D = any, E = Error> = {
+  onSubmit: (value: T) => Promise<D>;
+  schema?: Context<T, D, E>['schema'];
+  initialValues?: { [K in keyof T]: T[K] };
+};
+
 const create = <T, D, E>({
   schema,
   onSubmit,
   initialValues,
-}: Config<T, D>): Form<T, D, E> => {
+}: Config<T, D, E>): Form<T, D, E> => {
   const def = machine<T, D, E>();
 
   const __service = interpret(
@@ -102,9 +108,10 @@ const create = <T, D, E>({
 
   const ctx = initialState.context;
 
-  const generate: Form<T, D, E>['__generate'] = ({
+  const generate: Generate<T, D, E> = ({
     states,
     schema,
+    values,
   }: Context<T, D, E>) => {
     const entries = pipe(
       schema,
@@ -116,9 +123,11 @@ const create = <T, D, E>({
           map((id) => {
             const _id = id as keyof T;
             const state = states[_id];
+            const value = values[_id];
 
             const handler: Handler<T[typeof _id]> = {
               state,
+              value,
               set: (value) => {
                 __service.send({ id, value, type: EventTypes.CHANGE });
               },

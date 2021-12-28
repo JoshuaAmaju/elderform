@@ -1,7 +1,7 @@
 import { flow } from 'fp-ts/lib/function';
 import { pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/Option';
-import { identity, keys, length, map } from 'ramda';
+import { identity, keys, length, map, values } from 'ramda';
 import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { Schema } from '../types';
 import { actor } from './actor';
@@ -267,7 +267,8 @@ export const machine = <T, D = any, E = any>() => {
     },
     {
       guards: {
-        hasSchema: ({ schema }) => schema !== false && !!schema,
+        hasSchema: ({ schema }) =>
+          typeof schema !== 'boolean' && !!schema && values(schema).length > 0,
       },
 
       actions: {
