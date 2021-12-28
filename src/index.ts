@@ -108,7 +108,7 @@ const create = <T, D, E>({
 
   const ctx = initialState.context;
 
-  const generate: Form<T, D, E>['__generate'] = ({
+  const generate: Generate<T, D, E> = ({
     states,
     schema,
     values,
