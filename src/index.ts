@@ -18,6 +18,7 @@ export { object } from './utils';
 export { z };
 
 type Handler<T> = {
+  value?: T | null;
   state: ActorStates;
   set: (value: T) => void;
   setWithValidate: (value: T) => void;
@@ -110,6 +111,7 @@ const create = <T, D, E>({
   const generate: Form<T, D, E>['__generate'] = ({
     states,
     schema,
+    values,
   }: Context<T, D, E>) => {
     const entries = pipe(
       schema,
@@ -121,9 +123,11 @@ const create = <T, D, E>({
           map((id) => {
             const _id = id as keyof T;
             const state = states[_id];
+            const value = values[_id];
 
             const handler: Handler<T[typeof _id]> = {
               state,
+              value,
               set: (value) => {
                 __service.send({ id, value, type: EventTypes.CHANGE });
               },
