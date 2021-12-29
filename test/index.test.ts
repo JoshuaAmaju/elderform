@@ -10,34 +10,34 @@ type Form = z.infer<typeof schema>;
 
 const def = machine<Form, any, any>();
 
-const ctx: Context<Form, any, any> = {
-  ...def.context,
-  values: {},
-  errors: new Map(),
-};
+const ctx: Context<Form, any, any> = def.context;
 
 let service: Interpreter<
   Context<Form, any, any>,
   any,
   Events<Form, any, any>,
   States<Form, any, any>
->;
+> | null;
 
 const submit = () => Promise.resolve({});
 
 describe('machine', () => {
   beforeEach(() => {
-    service = interpret(def.withContext(ctx)).start();
+    service = interpret(def).start();
+  });
+
+  afterAll(() => {
+    service = null;
   });
 
   it('should initialise to waitingInit state given no schema provided', (done) => {
-    service.onTransition((state) => {
+    service?.onTransition((state) => {
       if (state.matches('waitingInit')) done();
     });
   });
 
   it('should initialise to idle state', (done) => {
-    service = interpret(def.withContext({ ...ctx, schema })).start();
+    const service = interpret(def.withContext({ ...ctx, schema })).start();
 
     service.onTransition((state) => {
       if (state.matches('idle')) done();
@@ -45,7 +45,7 @@ describe('machine', () => {
   });
 
   it('should lazily initialise idle state with schema', (done) => {
-    service.onTransition((state) => {
+    service?.onTransition((state) => {
       if (state.matches('idle') && state.history?.matches('waitingInit')) {
         expect(state.context.schema).toBeDefined();
         done();
@@ -53,12 +53,12 @@ describe('machine', () => {
     });
 
     setTimeout(() => {
-      service.send({ type: EventTypes.Set, name: 'schema', value: schema });
+      service?.send({ type: EventTypes.Set, name: 'schema', value: schema });
     }, 1000);
   });
 
   it('should have default values', (done) => {
-    service = interpret(
+    const service = interpret(
       def.withContext({ ...ctx, schema, values: { name: 'Joe' } })
     ).start();
 
@@ -75,26 +75,30 @@ describe('field validation', () => {
     service = interpret(def.withContext({ ...ctx, schema })).start();
   });
 
+  afterAll(() => {
+    service = null;
+  });
+
   it('should validate field with error', (done) => {
-    service.onTransition(({ context }, e) => {
+    service?.onTransition(({ context }, e) => {
       if (e.type === 'FAIL') {
         expect(context.errors.get('name')).toBeDefined();
         done();
       }
     });
 
-    service.send({ type: EventTypes.Validate, id: 'name' });
+    service?.send({ type: EventTypes.Validate, id: 'name' });
   });
 
   it('should validate field without error', (done) => {
-    service.onTransition(({ context }, e) => {
+    service?.onTransition(({ context }, e) => {
       if (e.type === 'SUCCESS') {
         expect(context.errors.get('name')).not.toBeDefined();
         done();
       }
     });
 
-    service.send({
+    service?.send({
       id: 'name',
       value: 'Joe',
       type: EventTypes.ChangeWithValidate,
@@ -110,7 +114,7 @@ describe('submission', () => {
   });
 
   it('should submit without error', (done) => {
-    service = interpret(
+    const service = interpret(
       def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
         services: { submit },
       })
@@ -127,7 +131,7 @@ describe('submission', () => {
   });
 
   it('should submit with error', (done) => {
-    service = interpret(
+    const service = interpret(
       def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
         services: { submit: () => Promise.reject(new Error()) },
       })
@@ -145,7 +149,7 @@ describe('submission', () => {
   });
 
   it('should not submit due to validation error', (done) => {
-    service = interpret(def.withContext(_ctx)).start();
+    const service = interpret(def.withContext(_ctx)).start();
 
     service.onTransition((state) => {
       if (state.matches('idle') && state.history?.matches('validating')) {
@@ -158,7 +162,7 @@ describe('submission', () => {
   });
 
   it('should bailout on submission if any field has error', (done) => {
-    service = interpret(
+    const service = interpret(
       def.withContext(_ctx).withConfig({
         actions: { onSubmitWithErrors: () => done() },
       })
@@ -172,13 +176,14 @@ describe('submission', () => {
   });
 
   it('should ignore specified fields', (done) => {
-    service = interpret(
-      def.withContext({ ..._ctx, errors: new Map() }).withConfig({
+    const service = interpret(
+      def.withContext(_ctx).withConfig({
         services: { submit },
       })
     ).start();
 
     service.onTransition((state) => {
+      console.log(state.value);
       expect(state.context.states.name).toBe('idle');
       if (state.matches('submitted')) done();
     });
@@ -212,7 +217,11 @@ describe('submission', () => {
 
 describe('setting values', () => {
   beforeEach(() => {
-    service = interpret(def.withContext(ctx)).start();
+    service = interpret(def).start();
+  });
+
+  afterAll(() => {
+    service = null;
   });
 
   it('should set values', (done) => {
@@ -225,15 +234,10 @@ describe('setting values', () => {
 
     const def = machine<Form, any, any>();
 
-    const ctx: Context<Form, any, any> = {
-      ...def.context,
-      values: {},
-    };
-
     let value: Form = { age: 20, name: 'John' };
 
     let service = interpret(
-      def.withContext({ ...ctx, schema, errors: new Map() })
+      def.withContext({ ...def.context, schema, errors: new Map() })
     ).start();
 
     service.onChange((ctx) => {
@@ -245,12 +249,12 @@ describe('setting values', () => {
   });
 
   it('should set errors', (done) => {
-    service.onChange((ctx) => {
+    service?.onChange((ctx) => {
       expect(ctx.errors).toMatchObject(new Map([['name', 'some error']]));
       done();
     });
 
-    service.send({
+    service?.send({
       name: 'errors',
       type: EventTypes.Set,
       value: new Map([['name', 'some error']]),
@@ -258,21 +262,21 @@ describe('setting values', () => {
   });
 
   it('should set error', (done) => {
-    service.onChange((ctx) => {
+    service?.onChange((ctx) => {
       expect(ctx.error).toBeInstanceOf(Error);
       done();
     });
 
-    service.send({ value: new Error(), name: 'error', type: EventTypes.Set });
+    service?.send({ value: new Error(), name: 'error', type: EventTypes.Set });
   });
 
   it('should set data', (done) => {
-    service.onChange((ctx) => {
+    service?.onChange((ctx) => {
       expect(ctx.data).toMatchObject({ status: 200 });
       done();
     });
 
-    service.send({
+    service?.send({
       name: 'data',
       type: EventTypes.Set,
       value: { status: 200 },
@@ -280,7 +284,7 @@ describe('setting values', () => {
   });
 
   it('should not unset schema', (done) => {
-    service = interpret(def.withContext({ ...ctx, schema })).start();
+    const service = interpret(def.withContext({ ...ctx, schema })).start();
 
     service.onChange((ctx) => {
       expect(ctx.schema).toBeDefined();
@@ -298,11 +302,19 @@ describe('setting values', () => {
 
 describe('disable schema', () => {
   beforeEach(() => {
-    service = interpret(def.withContext({ ...ctx, schema: false })).start();
+    service = interpret(
+      def.withContext({ ...ctx, schema: false }).withConfig({
+        services: { submit },
+      })
+    ).start();
   });
 
+  // afterAll(() => {
+  //   service = null;
+  // });
+
   it('should disable schema and not create actors', (done) => {
-    service.onTransition((state) => {
+    service?.onTransition((state) => {
       expect(state.value).toBe('idle');
       expect(state.context.schema).toBe(false);
       expect(state.context.actors).toBeUndefined();
@@ -312,17 +324,11 @@ describe('disable schema', () => {
   });
 
   it('should never validate', (done) => {
-    service = interpret(
-      def.withContext({ ...ctx, schema: false, errors: new Map() }).withConfig({
-        services: { submit },
-      })
-    ).start();
-
-    service.onTransition((state) => {
+    service?.onTransition((state) => {
       expect(state.matches('validating')).toBe(false);
       if (state.matches('submitted')) done();
     });
 
-    service.send(EventTypes.Submit);
+    service?.send(EventTypes.Submit);
   });
 });

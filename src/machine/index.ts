@@ -68,6 +68,7 @@ export const machine = <T, D, E>() => {
       initial: 'idle',
 
       context: {
+        values: {},
         errors: new Map(),
         __ignore: new Set(),
         __validationMarker: new Set(),
