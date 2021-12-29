@@ -1,21 +1,12 @@
 import { flow, pipe } from 'fp-ts/lib/function';
-import * as O from 'fp-ts/Option';
+import { fromNullable, filter, map as omap, fold } from 'fp-ts/Option';
 import { identity, keys, map } from 'ramda';
-import { from, Subscription } from 'rxjs';
-import { interpret, Interpreter } from 'xstate';
-import * as z from 'zod';
-import {
-  ActorStates,
-  Context,
-  Events,
-  EventTypes,
-  machine,
-  States,
-} from '../src/machine';
-
-export { TypeOf } from './types';
-export { object } from './utils';
-export { z };
+import { from } from 'rxjs';
+import type { Subscription } from 'rxjs';
+import { interpret } from 'xstate';
+import type { Interpreter } from 'xstate';
+import { EventTypes, machine } from '../src/machine';
+import type { ActorStates, Context, Events, States } from '../src/machine';
 
 type Handler<T> = {
   value?: T | null;
@@ -24,12 +15,11 @@ type Handler<T> = {
   setWithValidate: (value: T) => void;
 };
 
-type Generate<T extends z.ZodRawShape, D, E> = (ctx: Context<T, D, E>) => {
+type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
   [K in keyof T]: Handler<T[K]>;
 };
 
-type FormPartial<T, D, E> = {
-  //   generate: Generate<T, D, E>;
+type FormPartial<T> = {
   handlers: { [K in keyof T]: Handler<T[K]> };
 };
 
@@ -42,7 +32,7 @@ type FormState =
   | 'submittedWithError'
   | 'error';
 
-type SubscriptionValue<T extends z.ZodRawShape, D, E> = FormPartial<T, D, E> & {
+type SubscriptionValue<T, D, E> = FormPartial<T> & {
   state: FormState;
   isIdle: boolean;
   isError: boolean;
@@ -58,7 +48,7 @@ type SubscriptionValue<T extends z.ZodRawShape, D, E> = FormPartial<T, D, E> & {
     'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
   >;
 
-type Form<T extends z.ZodRawShape, D, E> = FormPartial<T, D, E> & {
+type Form<T, D, E> = FormPartial<T> & {
   submit(): void;
   state: FormState;
   subscribe: (fn: (val: SubscriptionValue<T, D, E>) => void) => Subscription;
@@ -71,13 +61,13 @@ type Form<T extends z.ZodRawShape, D, E> = FormPartial<T, D, E> & {
   >;
 };
 
-export type Config<T extends z.ZodRawShape, D = any, E = Error> = {
+export type Config<T, D = any, E = Error> = {
   onSubmit: (value: T) => Promise<D>;
   schema?: Context<T, D, E>['schema'];
   initialValues?: { [K in keyof T]: T[K] };
 };
 
-const create = <T extends z.ZodRawShape, D, E>({
+const create = <T, D, E>({
   schema,
   onSubmit,
   initialValues,
@@ -115,9 +105,9 @@ const create = <T extends z.ZodRawShape, D, E>({
   }: Context<T, D, E>) => {
     const entries = pipe(
       schema,
-      O.fromNullable,
-      O.filter((s) => typeof s !== 'boolean'),
-      O.map(
+      fromNullable,
+      filter((s) => typeof s !== 'boolean'),
+      omap(
         flow(
           keys,
           map((id) => {
@@ -144,7 +134,7 @@ const create = <T extends z.ZodRawShape, D, E>({
           })
         )
       ),
-      O.fold(() => [], identity)
+      fold(() => [], identity)
     );
 
     return Object.fromEntries(entries);

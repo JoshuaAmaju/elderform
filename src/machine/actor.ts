@@ -1,9 +1,8 @@
 import { assign, createMachine, sendParent } from 'xstate';
-import { ZodError, ZodTypeAny } from 'zod';
+import { ZodError } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
-export type Context = {
-  value?: any;
-};
+export type Context = { value?: any };
 
 export type States = { context: Context; value: 'idle' | 'validating' };
 
@@ -79,11 +78,9 @@ export const actor = ({
           } catch (e) {
             let err = (e as Error)?.message;
 
-            // console.log('error', e);
-
             if (e instanceof ZodError) err = e.issues[0].message;
 
-            return Promise.reject(err);
+            throw err;
           }
         },
       },
