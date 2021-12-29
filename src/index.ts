@@ -1,12 +1,7 @@
-import { flow, pipe } from 'fp-ts/lib/function';
-import { fromNullable, filter, map as omap, fold } from 'fp-ts/Option';
-import { identity, keys, map } from 'ramda';
-import { from } from 'rxjs';
-import type { Subscription } from 'rxjs';
+import type { Interpreter, State } from 'xstate';
 import { interpret } from 'xstate';
-import type { Interpreter } from 'xstate';
-import { EventTypes, machine } from '../src/machine';
 import type { ActorStates, Context, Events, States } from '../src/machine';
+import { EventTypes, machine } from '../src/machine';
 
 type Handler<T> = {
   value?: T | null;
@@ -19,10 +14,6 @@ type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
   [K in keyof T]: Handler<T[K]>;
 };
 
-type FormPartial<T> = {
-  handlers: { [K in keyof T]: Handler<T[K]> };
-};
-
 type FormState =
   | 'idle'
   | 'validating'
@@ -32,7 +23,7 @@ type FormState =
   | 'submittedWithError'
   | 'error';
 
-type SubscriptionValue<T, D, E> = FormPartial<T> & {
+type SubscriptionValue<T, D, E> = {
   state: FormState;
   isIdle: boolean;
   isError: boolean;
@@ -44,14 +35,19 @@ type SubscriptionValue<T, D, E> = FormPartial<T> & {
   validatedWithErrors?: boolean;
   submittedWithoutError?: boolean;
 } & Pick<
-    Context<T, D, E>,
-    'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
-  >;
+  Context<T, D, E>,
+  'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
+>;
 
-type Form<T, D, E> = FormPartial<T> & {
+type Form<T, D, E> = {
   submit(): void;
   state: FormState;
-  subscribe: (fn: (val: SubscriptionValue<T, D, E>) => void) => Subscription;
+  subscribe: (
+    fn: (
+      val: SubscriptionValue<T, D, E>,
+      handlers: { [K in keyof T]: Handler<T[K]> }
+    ) => void
+  ) => () => void;
   __generate: Generate<T, D, E>;
   __service: Interpreter<
     Context<T, D, E>,
@@ -74,7 +70,7 @@ const create = <T, D, E>({
 }: Config<T, D, E>): Form<T, D, E> => {
   const def = machine<T, D, E>();
 
-  const __service = interpret(
+  const service = interpret(
     def
       .withContext({
         ...def.context,
@@ -92,62 +88,57 @@ const create = <T, D, E>({
       })
   ).start();
 
-  const $service = from(__service);
+  const { initialState } = service;
 
-  const { initialState } = __service;
-
-  const ctx = initialState.context;
+  const state: FormState = initialState.matches('waitingInit')
+    ? 'idle'
+    : (initialState.value as any);
 
   const generate: Generate<T, D, E> = ({
     states,
     schema,
     values,
   }: Context<T, D, E>) => {
-    const entries = pipe(
-      schema,
-      fromNullable,
-      filter((s) => typeof s !== 'boolean'),
-      omap(
-        flow(
-          keys,
-          map((id) => {
-            const _id = id as keyof T;
-            const state = states[_id];
-            const value = values[_id];
+    if (!schema || typeof schema === 'boolean') return;
 
-            const handler: Handler<T[typeof _id]> = {
-              state,
-              value,
-              set: (value) => {
-                __service.send({ id, value, type: EventTypes.CHANGE });
-              },
-              setWithValidate: (value) => {
-                __service.send({
-                  id,
-                  value,
-                  type: EventTypes.CHANGE_WITH_VALIDATE,
-                });
-              },
-            };
+    const { shape } = schema;
 
-            return [id, handler];
-          })
-        )
-      ),
-      fold(() => [], identity)
-    );
+    const entries = Object.keys(shape).map((id) => {
+      const _id = id as keyof T;
+      const state = states[_id];
+      const value = values[_id];
+
+      const handler: Handler<T[typeof _id]> = {
+        state,
+        value,
+        set: (value) => {
+          service.send({ id, value, type: EventTypes.CHANGE });
+        },
+        setWithValidate: (value) => {
+          service.send({
+            id,
+            value,
+            type: EventTypes.CHANGE_WITH_VALIDATE,
+          });
+        },
+      };
+
+      return [id, handler];
+    });
 
     return Object.fromEntries(entries);
   };
 
   return {
-    __service,
+    state,
+    __service: service,
     __generate: generate,
-    state: 'idle',
-    handlers: generate(ctx),
-    submit: () => __service.send(EventTypes.SUBMIT),
+    submit: () => service.send(EventTypes.SUBMIT),
     subscribe: (fn) => {
-      return $service.subscribe((_state) => {
+      const listener: (
+        s: State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>,
+        e: Events<T, D, E>
+      ) => void = (_state) => {
         const { data, error, errors, values, dataUpdatedAt, errorUpdatedAt } =
           _state.context;
 
@@ -172,29 +163,37 @@ const create = <T, D, E>({
           ? 'submittedWithError'
           : (_state.value as FormState);
 
-        fn({
-          data,
-          error,
-          state,
-          errors,
-          values,
-          handlers,
+        fn(
+          {
+            data,
+            error,
+            state,
+            errors,
+            values,
 
-          dataUpdatedAt,
-          errorUpdatedAt,
+            dataUpdatedAt,
+            errorUpdatedAt,
 
-          // form states
-          isIdle,
-          isError,
-          submitted,
-          isValidating,
-          isSubmitting,
-          submittedWithError,
-          validatedWithErrors,
-          isSuccess: submitted,
-          submittedWithoutError,
-        });
-      });
+            // form states
+            isIdle,
+            isError,
+            submitted,
+            isValidating,
+            isSubmitting,
+            submittedWithError,
+            validatedWithErrors,
+            isSuccess: submitted,
+            submittedWithoutError,
+          },
+          handlers
+        );
+      };
+
+      service.onTransition(listener);
+
+      return () => {
+        service.off(listener);
+      };
     },
   };
 };
