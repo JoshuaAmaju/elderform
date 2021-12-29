@@ -113,13 +113,13 @@ const create = <T, D = any, E = Error>({
         state,
         value,
         set: (value) => {
-          service.send({ id, value, type: EventTypes.CHANGE });
+          service.send({ id, value, type: EventTypes.Change });
         },
         setWithValidate: (value) => {
           service.send({
             id,
             value,
-            type: EventTypes.CHANGE_WITH_VALIDATE,
+            type: EventTypes.ChangeWithValidate,
           });
         },
       };
@@ -134,7 +134,7 @@ const create = <T, D = any, E = Error>({
     state,
     __service: service,
     __generate: generate,
-    submit: () => service.send(EventTypes.SUBMIT),
+    submit: () => service.send(EventTypes.Submit),
     subscribe: (fn) => {
       const listener: (
         s: State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>,
