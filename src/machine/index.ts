@@ -1,11 +1,13 @@
-import { flow } from 'fp-ts/lib/function';
-import { pipe } from 'fp-ts/lib/function';
-import { fromNullable, map as omap, fold, filter } from 'fp-ts/Option';
-import { identity, keys, length, map, values } from 'ramda';
-import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
-
+import { flow, pipe } from 'fp-ts/lib/function';
+import { filter, fold, fromNullable, map as omap } from 'fp-ts/Option';
+import { identity, keys, map, values } from 'ramda';
+import { ActorRef, assign, createMachine, send, spawn } from 'xstate';
+import { choose, pure } from 'xstate/lib/actions';
+import type { ZodObject, ZodIssue } from 'zod';
+import { ZodError } from 'zod';
 import { actor } from './actor';
-import * as z from 'zod';
+
+export type ActorStates = 'idle' | 'failed' | 'success' | 'validating';
 
 export enum EventTypes {
   SET = 'set',
@@ -15,24 +17,17 @@ export enum EventTypes {
   CHANGE_WITH_VALIDATE = 'changeWithValidate',
 }
 
-export enum ActorStates {
-  IDLE = 'idle',
-  FAILED = 'failed',
-  SUCCESS = 'success',
-  VALIDATING = 'validating',
-}
-
 export type Context<T, D = any, E = Error> = {
   data?: D | null;
   error?: E | null;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
-  errors: Map<keyof T, Error>;
   __validationMarker: Set<string>;
-  schema?: z.ZodObject<any> | boolean;
+  schema?: ZodObject<any> | boolean;
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
   values: { [K in keyof T]?: T[K] | null };
+  errors: Map<keyof T, ZodIssue['message']>;
 };
 
 export type SetType<T, D, E> =
@@ -44,14 +39,14 @@ export type SetType<T, D, E> =
 
 export type States<T, D = any, E = any> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
-  | { value: 'idle'; context: Context<T, D, E> & { schema: z.ZodObject<any> } }
+  | { value: 'idle'; context: Context<T, D, E> & { schema: ZodObject<any> } }
   | {
       value: 'validating' | { validating: 'actors' | 'full' };
-      context: Context<T, D, E> & { schema: z.ZodObject<any> };
+      context: Context<T, D, E> & { schema: ZodObject<any> };
     }
   | {
       value: 'submitting';
-      context: Context<T, D, E> & { schema: z.ZodObject<any> };
+      context: Context<T, D, E> & { schema: ZodObject<any> };
     }
   | { value: 'submitted'; context: Context<T, D, E> & { data: D } }
   | { value: 'error'; context: Context<T, D, E> & { error: E } };
@@ -68,9 +63,7 @@ export type Events<T, D = any, E = any> =
   | { type: 'FAIL'; id: string; reason: any }
   | { type: 'SUCCESS' | 'VALIDATING'; id: string };
 
-const { pure, choose } = actions;
-
-export const machine = <T, D = any, E = any>() => {
+export const machine = <T, D, E>() => {
   return createMachine<Context<T, D, E>, Events<T, D, E>, States<T, D, E>>(
     {
       id: 'form',
@@ -185,7 +178,7 @@ export const machine = <T, D = any, E = any>() => {
               }),
 
               entry: pure(({ schema, values }) => {
-                return keys((schema as z.ZodObject<any>).shape).map((key) => {
+                return keys((schema as ZodObject<any>).shape).map((key) => {
                   const value = values[key as keyof T];
                   return send(
                     { value, type: 'VALIDATE' },
@@ -201,7 +194,7 @@ export const machine = <T, D = any, E = any>() => {
                     return (
                       ctx.errors.size > 0 &&
                       ctx.__validationMarker.size >=
-                        keys((ctx.schema as z.ZodObject<any>).shape).length
+                        keys((ctx.schema as ZodObject<any>).shape).length
                     );
                   },
                 },
@@ -210,7 +203,7 @@ export const machine = <T, D = any, E = any>() => {
                   cond: ({ schema, __validationMarker }) => {
                     return (
                       __validationMarker.size >=
-                      keys((schema as z.ZodObject<any>).shape).length
+                      keys((schema as ZodObject<any>).shape).length
                     );
                   },
                 },
@@ -251,15 +244,7 @@ export const machine = <T, D = any, E = any>() => {
           exit: choose([
             {
               cond: 'hasSchema',
-              actions: assign({
-                states: ({ schema }) => {
-                  return Object.fromEntries(
-                    keys((schema as z.ZodObject<any>).shape).map(
-                      (key) => [key, ActorStates.IDLE] as const
-                    )
-                  ) as Context<T, D, E>['states'];
-                },
-              }),
+              actions: 'setInitialStates',
             },
           ]),
 
@@ -296,7 +281,7 @@ export const machine = <T, D = any, E = any>() => {
         hasSchema: ({ schema }) =>
           typeof schema !== 'boolean' &&
           !!schema &&
-          values((schema as z.ZodObject<any>).shape).length > 0,
+          values((schema as ZodObject<any>).shape).length > 0,
       },
 
       actions: {
@@ -325,12 +310,12 @@ export const machine = <T, D = any, E = any>() => {
         setInitialStates: assign({
           states: ({ schema }) => {
             const entries = pipe(
-              (schema as z.ZodObject<any>).shape,
+              (schema as ZodObject<any>).shape,
               fromNullable,
               omap(
                 flow(
                   keys,
-                  map((key) => [key, ActorStates.IDLE])
+                  map((key) => [key, 'idle'])
                 )
               ),
               fold(() => [], identity)
@@ -347,7 +332,7 @@ export const machine = <T, D = any, E = any>() => {
               fromNullable,
               filter((s) => typeof s !== 'boolean'),
               omap((s) => {
-                const { shape } = s as z.ZodObject<any>;
+                const { shape } = s as ZodObject<any>;
 
                 return keys(shape).map((key) => {
                   const act = spawn(
@@ -397,25 +382,25 @@ export const machine = <T, D = any, E = any>() => {
 
         setActorIdle: assign({
           states: ({ states }, { id }: any) => {
-            return { ...states, [id]: ActorStates.IDLE };
+            return { ...states, [id]: 'idle' };
           },
         }),
 
         setActorFail: assign({
           states: ({ states }, { id }: any) => {
-            return { ...states, [id]: ActorStates.FAILED };
+            return { ...states, [id]: 'failed' };
           },
         }),
 
         setActorSuccess: assign({
           states: ({ states }, { id }: any) => {
-            return { ...states, [id]: ActorStates.SUCCESS };
+            return { ...states, [id]: 'success' };
           },
         }),
 
         setActorValidating: assign({
           states: ({ states }, { id }: any) => {
-            return { ...states, [id]: ActorStates.VALIDATING };
+            return { ...states, [id]: 'validating' };
           },
         }),
       },
@@ -425,11 +410,11 @@ export const machine = <T, D = any, E = any>() => {
 
         validateSchema: async ({ schema, values }) => {
           try {
-            return await (schema as z.ZodObject<any>).parseAsync(values);
+            return await (schema as ZodObject<any>).parseAsync(values);
           } catch (error) {
             let err = error;
 
-            if (error instanceof z.ZodError) {
+            if (error instanceof ZodError) {
               const errors = error.issues.map((e) => {
                 const [path] = e.path;
                 return [path, e.message] as const;

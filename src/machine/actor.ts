@@ -1,9 +1,8 @@
 import { assign, createMachine, sendParent } from 'xstate';
-import { ZodError, ZodTypeAny } from 'zod';
+import { ZodError } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
-export type Context = {
-  value?: any;
-};
+export type Context = { value?: any };
 
 export type States = { context: Context; value: 'idle' | 'validating' };
 

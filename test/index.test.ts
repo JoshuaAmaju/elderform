@@ -225,14 +225,14 @@ describe('setting values', () => {
     service = interpret(def.withContext(ctx)).start();
 
     service.onChange((ctx) => {
-      expect(ctx.errors).toMatchObject(new Map([['name', new Error()]]));
+      expect(ctx.errors).toMatchObject(new Map([['name', 'some error']]));
       done();
     });
 
     service.send({
       name: 'errors',
       type: EventTypes.SET,
-      value: new Map([['name', new Error()]]),
+      value: new Map([['name', 'some error']]),
     });
   });
 
