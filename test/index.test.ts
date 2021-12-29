@@ -1,14 +1,12 @@
 import { interpret, Interpreter } from 'xstate';
 import * as z from 'zod';
 import { Context, Events, EventTypes, machine, States } from '../src/machine';
-import { TypeOf } from '../src/types';
-import { object } from '../src/utils';
 
-const schema = object({
+const schema = z.object({
   name: z.string(),
 });
 
-type Form = TypeOf<typeof schema>;
+type Form = z.infer<typeof schema>;
 
 const def = machine<Form, any, any>();
 
@@ -197,12 +195,12 @@ describe('setting values', () => {
   });
 
   it('should set values', (done) => {
-    const schema = object({
+    const schema = z.object({
       age: z.number(),
       name: z.string(),
     });
 
-    type Form = TypeOf<typeof schema>;
+    type Form = z.infer<typeof schema>;
 
     const def = machine<Form, any, any>();
 

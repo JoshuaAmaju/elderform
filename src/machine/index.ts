@@ -7,8 +7,6 @@ import { Schema } from '../types';
 import { actor } from './actor';
 import * as z from 'zod';
 
-z.object({ age: z.string() }).shape.age;
-
 export enum EventTypes {
   SET = 'set',
   SUBMIT = 'submit',
@@ -24,38 +22,38 @@ export enum ActorStates {
   VALIDATING = 'validating',
 }
 
-export type Context<T extends z.ZodRawShape, D = any, E = Error> = {
+export type Context<T, D = any, E = Error> = {
   data?: D | null;
   error?: E | null;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
   errors: Map<keyof T, Error>;
   __validationMarker: Set<string>;
-  schema?: z.ZodObject<T> | boolean;
+  schema?: z.ZodObject<any> | boolean;
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
   values: { [K in keyof T]?: T[K] | null };
 };
 
-export type SetType<T extends z.ZodRawShape, D, E> =
+export type SetType<T, D, E> =
   | { name: 'data'; value: Context<T, D, E>['data'] }
   | { name: 'values'; value: Context<T, D, E>['values'] }
   | { name: 'error'; value: Context<T, D, E>['error'] }
   | { name: 'errors'; value: Context<T, D, E>['errors'] }
   | { name: 'schema'; value: Required<Context<T, D, E>>['schema'] };
 
-export type States<T extends z.ZodRawShape, D = any, E = any> =
+export type States<T, D = any, E = any> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
   | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
   | {
-      value: 'validating';
+      value: 'validating' | { validating: 'actors' | 'full' };
       context: Context<T, D, E> & { schema: Schema<T> };
     }
   | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } }
   | { value: 'submitted'; context: Context<T, D, E> & { data: D } }
   | { value: 'error'; context: Context<T, D, E> & { error: E } };
 
-export type Events<T extends z.ZodRawShape, D = any, E = any> =
+export type Events<T, D = any, E = any> =
   | { type: EventTypes.SUBMIT }
   | ({ type: EventTypes.SET } & SetType<T, D, E>)
   | {
@@ -69,9 +67,10 @@ export type Events<T extends z.ZodRawShape, D = any, E = any> =
 
 const { pure, choose } = actions;
 
-export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
+export const machine = <T, D = any, E = any>() => {
   return createMachine<Context<T, D, E>, Events<T, D, E>, States<T, D, E>>(
     {
+      id: 'form',
       initial: 'idle',
 
       entry: choose([
@@ -146,8 +145,8 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
                 cond: ({ errors }) => errors.size > 0,
               },
               {
-                target: 'validating',
                 cond: 'hasSchema',
+                target: 'validating',
               },
               {
                 target: 'submitting',
@@ -177,46 +176,73 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
         },
 
         validating: {
-          exit: assign({
-            __validationMarker: (_) => new Set(),
-          }),
+          initial: 'actors',
 
-          entry: pure(({ schema, values }) => {
-            return pipe(
-              schema,
-              keys,
-              map((key) => {
-                const value = values[key as keyof T];
-                return send({ value, type: 'VALIDATE' }, { to: key });
-              })
-            );
-          }),
+          states: {
+            actors: {
+              exit: assign({
+                __validationMarker: (_) => new Set(),
+              }),
 
-          always: [
-            {
-              target: 'idle',
-              cond: (ctx) => {
-                return (
-                  ctx.errors.size > 0 &&
-                  ctx.__validationMarker.size >= pipe(ctx.schema, keys, length)
+              entry: pure(({ schema, values }) => {
+                return pipe(
+                  (schema as z.ZodObject<any>).shape,
+                  keys,
+                  map((key) => {
+                    const value = values[key as keyof T];
+                    return send({ value, type: 'VALIDATE' }, { to: key });
+                  })
                 );
+              }),
+
+              always: [
+                {
+                  target: '#form.idle',
+                  cond: (ctx) => {
+                    return (
+                      ctx.errors.size > 0 &&
+                      ctx.__validationMarker.size >=
+                        pipe(
+                          (ctx.schema as z.ZodObject<any>).shape,
+                          keys,
+                          length
+                        )
+                    );
+                  },
+                },
+                {
+                  target: 'full',
+                  cond: ({ schema, __validationMarker }) => {
+                    return (
+                      __validationMarker.size >=
+                      pipe((schema as z.ZodObject<any>).shape, keys, length)
+                    );
+                  },
+                },
+              ],
+
+              on: {
+                FAIL: {
+                  actions: ['mark', 'setActorFail', 'setError'],
+                },
+
+                SUCCESS: {
+                  actions: ['mark', 'setActorSuccess', 'removeError'],
+                },
               },
             },
-            {
-              target: 'submitting',
-              cond: ({ schema, __validationMarker }) => {
-                return __validationMarker.size >= pipe(schema, keys, length);
+
+            full: {
+              invoke: {
+                src: 'validateSchema',
+                onDone: '#form.submitting',
+                onError: {
+                  target: '#form.idle',
+                  actions: assign({
+                    errors: (_, { data }) => data,
+                  }),
+                },
               },
-            },
-          ],
-
-          on: {
-            FAIL: {
-              actions: ['mark', 'setActorFail', 'setError'],
-            },
-
-            SUCCESS: {
-              actions: ['mark', 'setActorSuccess', 'removeError'],
             },
           },
         },
@@ -233,7 +259,9 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
               actions: assign({
                 states: ({ schema }) => {
                   return Object.fromEntries(
-                    keys(schema).map((key) => [key, ActorStates.IDLE] as const)
+                    keys((schema as z.ZodObject<any>).shape).map(
+                      (key) => [key, ActorStates.IDLE] as const
+                    )
                   ) as Context<T, D, E>['states'];
                 },
               }),
@@ -271,7 +299,9 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
     {
       guards: {
         hasSchema: ({ schema }) =>
-          typeof schema !== 'boolean' && !!schema && values(schema).length > 0,
+          typeof schema !== 'boolean' &&
+          !!schema &&
+          values((schema as z.ZodObject<any>).shape).length > 0,
       },
 
       actions: {
@@ -300,7 +330,7 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
         setInitialStates: assign({
           states: ({ schema }) => {
             const entries = pipe(
-              schema,
+              (schema as z.ZodObject<any>).shape,
               O.fromNullable,
               O.map(
                 flow(
@@ -322,7 +352,7 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
               O.fromNullable,
               O.filter((s) => typeof s !== 'boolean'),
               O.map((s) => {
-                const shape = (s as z.ZodObject<T>).shape;
+                const { shape } = s as z.ZodObject<any>;
 
                 return pipe(
                   keys(shape),
@@ -366,14 +396,6 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
           },
         }),
 
-        // clearErrors: assign({
-        //   errors: (_) => new Map(),
-        // }),
-
-        // clearValues: assign({
-        //   values: (_) => ({} as T),
-        // }),
-
         mark: assign({
           __validationMarker: ({ __validationMarker }, { id }: any) => {
             __validationMarker.add(id);
@@ -408,6 +430,25 @@ export const machine = <T extends z.ZodRawShape, D = any, E = any>() => {
 
       services: {
         submit: () => Promise.resolve(),
+
+        validateSchema: async ({ schema, values }) => {
+          try {
+            return await (schema as z.ZodObject<any>).parseAsync(values);
+          } catch (error) {
+            let err = error;
+
+            if (error instanceof z.ZodError) {
+              const errors = error.issues.map((e) => {
+                const [path] = e.path;
+                return [path, e.message] as const;
+              });
+
+              err = new Map(errors);
+            }
+
+            throw err;
+          }
+        },
       },
     }
   );
