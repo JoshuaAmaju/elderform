@@ -14,7 +14,7 @@ type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
   [K in keyof T]: Handler<T[K]>;
 };
 
-type FormState =
+export type FormState =
   | 'idle'
   | 'validating'
   | 'validatedWithErrors'
@@ -39,7 +39,7 @@ type SubscriptionValue<T, D, E> = {
   'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
 >;
 
-type Form<T, D, E> = {
+type Service<T, D, E> = {
   submit(): void;
   state: FormState;
   subscribe: (
@@ -67,7 +67,7 @@ const create = <T, D = any, E = Error>({
   schema,
   onSubmit,
   initialValues,
-}: Config<T, D, E>): Form<T, D, E> => {
+}: Config<T, D, E>): Service<T, D, E> => {
   const def = machine<T, D, E>();
 
   const service = interpret(
@@ -90,6 +90,7 @@ const create = <T, D = any, E = Error>({
 
   const { initialState } = service;
 
+  // get the initial starting state
   const state: FormState = initialState.matches('waitingInit')
     ? 'idle'
     : (initialState.value as any);
