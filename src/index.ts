@@ -60,10 +60,10 @@ type Form<T, D, E> = {
 export type Config<T, D = any, E = Error> = {
   onSubmit: (value: T) => Promise<D>;
   schema?: Context<T, D, E>['schema'];
-  initialValues?: { [K in keyof T]: T[K] };
+  initialValues?: { [K in keyof T]?: T[K] };
 };
 
-const create = <T, D, E>({
+const create = <T, D = any, E = Error>({
   schema,
   onSubmit,
   initialValues,
@@ -73,7 +73,7 @@ const create = <T, D, E>({
   const service = interpret(
     def
       .withContext({
-        ...def.context,
+        ...def.context, // doesn't really do anything, just to appease typescript
         schema,
         dataUpdatedAt: 0,
         errorUpdatedAt: 0,
