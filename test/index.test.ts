@@ -52,7 +52,7 @@ describe('machine', () => {
     });
 
     setTimeout(() => {
-      service.send({ type: EventTypes.SET, name: 'schema', value: schema });
+      service.send({ type: EventTypes.Set, name: 'schema', value: schema });
     }, 1000);
   });
 
@@ -89,7 +89,7 @@ describe('field validation', () => {
       }
     });
 
-    service.send({ type: EventTypes.VALIDATE, id: 'name' });
+    service.send({ type: EventTypes.Validate, id: 'name' });
   });
 
   it('should validate field without error', (done) => {
@@ -103,7 +103,7 @@ describe('field validation', () => {
     service.send({
       id: 'name',
       value: 'Joe',
-      type: EventTypes.CHANGE_WITH_VALIDATE,
+      type: EventTypes.ChangeWithValidate,
     });
   });
 });
@@ -136,7 +136,7 @@ describe('submission', () => {
       }
     });
 
-    service.send(EventTypes.SUBMIT);
+    service.send(EventTypes.Submit);
   });
 
   it('should submit with error', (done) => {
@@ -156,7 +156,7 @@ describe('submission', () => {
       }
     });
 
-    service.send(EventTypes.SUBMIT);
+    service.send(EventTypes.Submit);
   });
 
   it('should not submit due to validation error', (done) => {
@@ -169,7 +169,7 @@ describe('submission', () => {
       }
     });
 
-    service.send(EventTypes.SUBMIT);
+    service.send(EventTypes.Submit);
   });
 
   it('should bailout on submission if any field has error', (done) => {
@@ -182,10 +182,10 @@ describe('submission', () => {
     ).start();
 
     service.onTransition((_, e) => {
-      if (e.type === 'FAIL') service.send(EventTypes.SUBMIT);
+      if (e.type === 'FAIL') service.send(EventTypes.Submit);
     });
 
-    service.send({ id: 'name', type: EventTypes.VALIDATE });
+    service.send({ id: 'name', type: EventTypes.Validate });
   });
 });
 
@@ -218,7 +218,7 @@ describe('setting values', () => {
       done();
     });
 
-    service.send({ value, name: 'values', type: EventTypes.SET });
+    service.send({ value, name: 'values', type: EventTypes.Set });
   });
 
   it('should set errors', (done) => {
@@ -231,7 +231,7 @@ describe('setting values', () => {
 
     service.send({
       name: 'errors',
-      type: EventTypes.SET,
+      type: EventTypes.Set,
       value: new Map([['name', 'some error']]),
     });
   });
@@ -244,7 +244,7 @@ describe('setting values', () => {
       done();
     });
 
-    service.send({ value: new Error(), name: 'error', type: EventTypes.SET });
+    service.send({ value: new Error(), name: 'error', type: EventTypes.Set });
   });
 
   it('should set data', (done) => {
@@ -257,7 +257,7 @@ describe('setting values', () => {
 
     service.send({
       name: 'data',
-      type: EventTypes.SET,
+      type: EventTypes.Set,
       value: { status: 200 },
     });
   });
@@ -274,7 +274,7 @@ describe('setting values', () => {
     service.send({
       name: 'schema',
       value: null as any,
-      type: EventTypes.SET,
+      type: EventTypes.Set,
     });
   });
 });
@@ -314,6 +314,6 @@ describe('disable schema', () => {
       if (state.matches('submitted')) done();
     });
 
-    service.send(EventTypes.SUBMIT);
+    service.send(EventTypes.Submit);
   });
 });
