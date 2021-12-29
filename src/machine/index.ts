@@ -1,9 +1,6 @@
-import { flow, pipe } from 'fp-ts/lib/function';
-import { filter, fold, fromNullable, map as omap } from 'fp-ts/Option';
-import { identity, keys, map, values } from 'ramda';
 import { ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { choose, pure } from 'xstate/lib/actions';
-import type { ZodObject, ZodIssue } from 'zod';
+import type { ZodIssue, ZodObject } from 'zod';
 import { ZodError } from 'zod';
 import { actor } from './actor';
 
@@ -178,13 +175,15 @@ export const machine = <T, D, E>() => {
               }),
 
               entry: pure(({ schema, values }) => {
-                return keys((schema as ZodObject<any>).shape).map((key) => {
-                  const value = values[key as keyof T];
-                  return send(
-                    { value, type: 'VALIDATE' },
-                    { to: key as string }
-                  );
-                });
+                return Object.keys((schema as ZodObject<any>).shape).map(
+                  (key) => {
+                    const value = values[key as keyof T];
+                    return send(
+                      { value, type: 'VALIDATE' },
+                      { to: key as string }
+                    );
+                  }
+                );
               }),
 
               always: [
@@ -194,7 +193,7 @@ export const machine = <T, D, E>() => {
                     return (
                       ctx.errors.size > 0 &&
                       ctx.__validationMarker.size >=
-                        keys((ctx.schema as ZodObject<any>).shape).length
+                        Object.keys((ctx.schema as ZodObject<any>).shape).length
                     );
                   },
                 },
@@ -203,7 +202,7 @@ export const machine = <T, D, E>() => {
                   cond: ({ schema, __validationMarker }) => {
                     return (
                       __validationMarker.size >=
-                      keys((schema as ZodObject<any>).shape).length
+                      Object.keys((schema as ZodObject<any>).shape).length
                     );
                   },
                 },
@@ -281,7 +280,7 @@ export const machine = <T, D, E>() => {
         hasSchema: ({ schema }) =>
           typeof schema !== 'boolean' &&
           !!schema &&
-          values((schema as ZodObject<any>).shape).length > 0,
+          Object.values((schema as ZodObject<any>).shape).length > 0,
       },
 
       actions: {
@@ -309,45 +308,28 @@ export const machine = <T, D, E>() => {
 
         setInitialStates: assign({
           states: ({ schema }) => {
-            const entries = pipe(
-              (schema as ZodObject<any>).shape,
-              fromNullable,
-              omap(
-                flow(
-                  keys,
-                  map((key) => [key, 'idle'])
-                )
-              ),
-              fold(() => [], identity)
+            const entries = Object.keys((schema as ZodObject<any>).shape).map(
+              (key) => [key, 'idle']
             );
-
             return Object.fromEntries(entries);
           },
         }),
 
         spawnActors: assign({
           actors: ({ schema }) => {
-            const entries = pipe(
-              schema,
-              fromNullable,
-              filter((s) => typeof s !== 'boolean'),
-              omap((s) => {
-                const { shape } = s as ZodObject<any>;
+            const { shape } = schema as ZodObject<any>;
 
-                return keys(shape).map((key) => {
-                  const act = spawn(
-                    actor({
-                      id: key as string,
-                      validator: shape[key],
-                    }),
-                    key as string
-                  );
+            const entries = Object.keys(shape).map((key) => {
+              const act = spawn(
+                actor({
+                  id: key as string,
+                  validator: shape[key],
+                }),
+                key as string
+              );
 
-                  return [key, act] as const;
-                });
-              }),
-              fold(() => [], identity)
-            );
+              return [key, act] as const;
+            });
 
             return Object.fromEntries(entries);
           },
