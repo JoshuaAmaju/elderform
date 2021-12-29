@@ -13,6 +13,7 @@ const def = machine<Form, any, any>();
 const ctx: Context<Form, any, any> = {
   ...def.context,
   values: {},
+  errors: new Map(),
 };
 
 let service: Interpreter<
@@ -22,9 +23,11 @@ let service: Interpreter<
   States<Form, any, any>
 >;
 
+const submit = () => Promise.resolve({});
+
 describe('machine', () => {
   beforeEach(() => {
-    service = interpret(def.withContext({ ...ctx, errors: new Map() })).start();
+    service = interpret(def.withContext(ctx)).start();
   });
 
   it('should initialise to waitingInit state given no schema provided', (done) => {
@@ -34,9 +37,7 @@ describe('machine', () => {
   });
 
   it('should initialise to idle state', (done) => {
-    service = interpret(
-      def.withContext({ ...ctx, schema, errors: new Map() })
-    ).start();
+    service = interpret(def.withContext({ ...ctx, schema })).start();
 
     service.onTransition((state) => {
       if (state.matches('idle')) done();
@@ -58,12 +59,7 @@ describe('machine', () => {
 
   it('should have default values', (done) => {
     service = interpret(
-      def.withContext({
-        ...ctx,
-        schema,
-        errors: new Map(),
-        values: { name: 'Joe' },
-      })
+      def.withContext({ ...ctx, schema, values: { name: 'Joe' } })
     ).start();
 
     service.onTransition(({ context: ctx }) => {
@@ -76,9 +72,7 @@ describe('machine', () => {
 
 describe('field validation', () => {
   beforeEach(() => {
-    service = interpret(
-      def.withContext({ ...ctx, schema, errors: new Map() })
-    ).start();
+    service = interpret(def.withContext({ ...ctx, schema })).start();
   });
 
   it('should validate field with error', (done) => {
@@ -112,20 +106,13 @@ describe('submission', () => {
   let _ctx: Context<Form>;
 
   beforeEach(() => {
-    _ctx = {
-      ...ctx,
-      schema,
-      errors: new Map(),
-      __validationMarker: new Set(),
-    };
+    _ctx = { ...ctx, schema };
   });
 
   it('should submit without error', (done) => {
     service = interpret(
       def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
-        services: {
-          submit: () => Promise.resolve({}),
-        },
+        services: { submit },
       })
     ).start();
 
@@ -142,13 +129,11 @@ describe('submission', () => {
   it('should submit with error', (done) => {
     service = interpret(
       def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
-        services: {
-          submit: () => Promise.reject(new Error()),
-        },
+        services: { submit: () => Promise.reject(new Error()) },
       })
     ).start();
 
-    service.onTransition((state, e) => {
+    service.onTransition((state) => {
       if (state.matches('error')) {
         expect(state.context.error).toBeDefined();
         expect(state.context.error).toBeInstanceOf(Error);
@@ -175,9 +160,7 @@ describe('submission', () => {
   it('should bailout on submission if any field has error', (done) => {
     service = interpret(
       def.withContext(_ctx).withConfig({
-        actions: {
-          onSubmitWithErrors: () => done(),
-        },
+        actions: { onSubmitWithErrors: () => done() },
       })
     ).start();
 
@@ -186,6 +169,44 @@ describe('submission', () => {
     });
 
     service.send({ id: 'name', type: EventTypes.Validate });
+  });
+
+  it('should ignore specified fields', (done) => {
+    service = interpret(
+      def.withContext({ ..._ctx, errors: new Map() }).withConfig({
+        services: { submit },
+      })
+    ).start();
+
+    service.onTransition((state) => {
+      expect(state.context.states.name).toBe('idle');
+      if (state.matches('submitted')) done();
+    });
+
+    service.send({ type: EventTypes.Submit, ignore: ['name'] });
+  });
+
+  it('should skip verification given we are skipping all fields', (done) => {
+    const schema = z.object({
+      age: z.number(),
+      name: z.string(),
+    });
+
+    type Form = z.infer<typeof schema>;
+
+    const def = machine<Form, any, any>();
+
+    let service = interpret(
+      def.withContext({ ...def.context, schema })
+    ).start();
+
+    service.onTransition((state) => {
+      expect(state.context.states).toMatchObject({ age: 'idle', name: 'idle' });
+      expect(state.matches('validating')).toBe(false);
+      if (state.matches('submitted')) done();
+    });
+
+    service.send({ type: EventTypes.Submit, ignore: ['name', 'age'] });
   });
 });
 
@@ -211,7 +232,9 @@ describe('setting values', () => {
 
     let value: Form = { age: 20, name: 'John' };
 
-    let service = interpret(def.withContext({ ...ctx, schema })).start();
+    let service = interpret(
+      def.withContext({ ...ctx, schema, errors: new Map() })
+    ).start();
 
     service.onChange((ctx) => {
       expect(ctx.values).toMatchObject(value);
@@ -222,8 +245,6 @@ describe('setting values', () => {
   });
 
   it('should set errors', (done) => {
-    service = interpret(def.withContext(ctx)).start();
-
     service.onChange((ctx) => {
       expect(ctx.errors).toMatchObject(new Map([['name', 'some error']]));
       done();
@@ -237,8 +258,6 @@ describe('setting values', () => {
   });
 
   it('should set error', (done) => {
-    service = interpret(def.withContext(ctx)).start();
-
     service.onChange((ctx) => {
       expect(ctx.error).toBeInstanceOf(Error);
       done();
@@ -248,8 +267,6 @@ describe('setting values', () => {
   });
 
   it('should set data', (done) => {
-    service = interpret(def.withContext(ctx)).start();
-
     service.onChange((ctx) => {
       expect(ctx.data).toMatchObject({ status: 200 });
       done();
@@ -296,17 +313,9 @@ describe('disable schema', () => {
 
   it('should never validate', (done) => {
     service = interpret(
-      def
-        .withContext({
-          ...ctx,
-          schema: false,
-          errors: new Map(),
-        })
-        .withConfig({
-          services: {
-            submit: () => Promise.resolve({}),
-          },
-        })
+      def.withContext({ ...ctx, schema: false, errors: new Map() }).withConfig({
+        services: { submit },
+      })
     ).start();
 
     service.onTransition((state) => {

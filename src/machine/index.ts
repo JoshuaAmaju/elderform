@@ -19,6 +19,7 @@ export type Context<T, D = any, E = Error> = {
   error?: E | null;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
+  __ignore: Set<keyof T>;
   __validationMarker: Set<string>;
   schema?: ZodObject<any> | boolean;
   actors: { [K: string]: ActorRef<any> };
@@ -49,7 +50,7 @@ export type States<T, D = any, E = any> =
   | { value: 'error'; context: Context<T, D, E> & { error: E } };
 
 export type Events<T, D = any, E = any> =
-  | { type: EventTypes.Submit }
+  | { type: EventTypes.Submit; ignore?: (keyof T)[] }
   | ({ type: EventTypes.Set } & SetType<T, D, E>)
   | {
       id: string;
@@ -65,6 +66,12 @@ export const machine = <T, D, E>() => {
     {
       id: 'form',
       initial: 'idle',
+
+      context: {
+        errors: new Map(),
+        __ignore: new Set(),
+        __validationMarker: new Set(),
+      } as any,
 
       entry: choose([
         {
@@ -135,8 +142,15 @@ export const machine = <T, D, E>() => {
                 cond: ({ errors }) => errors.size > 0,
               },
               {
-                cond: 'hasSchema',
                 target: 'validating',
+                actions: assign({
+                  __ignore: (_, { ignore = [] }) => new Set(ignore),
+                }),
+                cond: ({ schema }, { ignore = [] }) => {
+                  if (!schema || typeof schema === 'boolean') return false;
+                  const schemaLength = Object.values(schema.shape).length;
+                  return schemaLength - ignore.length > 0;
+                },
               },
               {
                 target: 'submitting',
@@ -168,22 +182,26 @@ export const machine = <T, D, E>() => {
         validating: {
           initial: 'actors',
 
+          exit: assign({
+            __ignore: (_) => new Set(),
+          }),
+
           states: {
             actors: {
               exit: assign({
                 __validationMarker: (_) => new Set(),
               }),
 
-              entry: pure(({ schema, values }) => {
-                return Object.keys((schema as ZodObject<any>).shape).map(
-                  (key) => {
+              entry: pure(({ schema, values, __ignore }) => {
+                return Object.keys((schema as ZodObject<any>).shape)
+                  .filter((key) => !__ignore.has(key as keyof T))
+                  .map((key) => {
                     const value = values[key as keyof T];
                     return send(
                       { value, type: 'VALIDATE' },
                       { to: key as string }
                     );
-                  }
-                );
+                  });
               }),
 
               always: [
@@ -193,16 +211,19 @@ export const machine = <T, D, E>() => {
                     return (
                       ctx.errors.size > 0 &&
                       ctx.__validationMarker.size >=
-                        Object.keys((ctx.schema as ZodObject<any>).shape).length
+                        Object.keys((ctx.schema as ZodObject<any>).shape)
+                          .length -
+                          ctx.__ignore.size
                     );
                   },
                 },
                 {
                   target: 'full',
-                  cond: ({ schema, __validationMarker }) => {
+                  cond: ({ schema, __ignore, __validationMarker }) => {
                     return (
                       __validationMarker.size >=
-                      Object.keys((schema as ZodObject<any>).shape).length
+                      Object.keys((schema as ZodObject<any>).shape).length -
+                        __ignore.size
                     );
                   },
                 },
@@ -390,9 +411,19 @@ export const machine = <T, D, E>() => {
       services: {
         submit: () => Promise.resolve(),
 
-        validateSchema: async ({ schema, values }) => {
+        validateSchema: async ({ schema, values, __ignore }) => {
+          const _schema = schema as ZodObject<any>;
+
+          const keys = Object.keys(_schema.shape);
+
+          const picks = keys
+            .filter((key) => !__ignore.has(key as keyof T))
+            .map((key) => [key, true]);
+
+          const pickedSchema = _schema.pick(Object.fromEntries(picks));
+
           try {
-            return await (schema as ZodObject<any>).parseAsync(values);
+            return await pickedSchema.parseAsync(values);
           } catch (error) {
             let err = error;
 
