@@ -17,10 +17,8 @@ type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
 export type FormState =
   | 'idle'
   | 'validating'
-  | 'validatedWithErrors'
   | 'submitting'
   | 'submitted'
-  | 'submittedWithError'
   | 'error';
 
 type SubscriptionValue<T, D, E> = {
@@ -158,10 +156,6 @@ const create = <T, D = any, E = Error>({
 
         const state: FormState = _state.matches('waitingInit')
           ? 'idle'
-          : validatedWithErrors
-          ? 'validatedWithErrors'
-          : _state.matches('error')
-          ? 'submittedWithError'
           : (_state.value as FormState);
 
         fn(
