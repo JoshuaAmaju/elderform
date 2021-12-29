@@ -1,6 +1,6 @@
 import { actor, Context, Events, States } from '../src/machine/actor';
 import { interpret, Interpreter } from 'xstate';
-import * as z from 'zod';
+import { string } from 'zod';
 
 describe('actor', () => {
   let service: Interpreter<Context, any, Events, States>;
@@ -9,7 +9,7 @@ describe('actor', () => {
 
   beforeEach(() => {
     service = interpret(
-      actor({ id: '1', validator: z.string() }).withConfig({
+      actor({ id: '1', validator: string() }).withConfig({
         actions: {
           sendFail: (_, { data }: any) => {
             error = data;
@@ -20,7 +20,7 @@ describe('actor', () => {
     ).start();
   });
 
-  beforeEach(() => {
+  afterEach(() => {
     error = null;
   });
 
