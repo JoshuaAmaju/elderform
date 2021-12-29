@@ -7,11 +7,11 @@ import { actor } from './actor';
 export type ActorStates = 'idle' | 'failed' | 'success' | 'validating';
 
 export enum EventTypes {
-  SET = 'set',
-  SUBMIT = 'submit',
-  CHANGE = 'change',
-  VALIDATE = 'validate',
-  CHANGE_WITH_VALIDATE = 'changeWithValidate',
+  Set = 'set',
+  Submit = 'submit',
+  Change = 'change',
+  Validate = 'validate',
+  ChangeWithValidate = 'changeWithValidate',
 }
 
 export type Context<T, D = any, E = Error> = {
@@ -49,14 +49,14 @@ export type States<T, D = any, E = any> =
   | { value: 'error'; context: Context<T, D, E> & { error: E } };
 
 export type Events<T, D = any, E = any> =
-  | { type: EventTypes.SUBMIT }
-  | ({ type: EventTypes.SET } & SetType<T, D, E>)
+  | { type: EventTypes.Submit }
+  | ({ type: EventTypes.Set } & SetType<T, D, E>)
   | {
       id: string;
       value: any;
-      type: EventTypes.CHANGE | EventTypes.CHANGE_WITH_VALIDATE;
+      type: EventTypes.Change | EventTypes.ChangeWithValidate;
     }
-  | { id: keyof T; type: EventTypes.VALIDATE }
+  | { id: keyof T; type: EventTypes.Validate }
   | { type: 'FAIL'; id: string; reason: any }
   | { type: 'SUCCESS' | 'VALIDATING'; id: string };
 
@@ -87,12 +87,12 @@ export const machine = <T, D, E>() => {
         },
 
         // enter idle state if change is sent while in another state
-        [EventTypes.CHANGE]: {
+        [EventTypes.Change]: {
           target: 'idle',
           actions: 'setValue',
         },
 
-        [EventTypes.SET]: [
+        [EventTypes.Set]: [
           {
             target: 'idle',
             in: 'waitingInit',
@@ -125,11 +125,11 @@ export const machine = <T, D, E>() => {
           },
 
           on: {
-            [EventTypes.CHANGE]: {
+            [EventTypes.Change]: {
               actions: 'setValue',
             },
 
-            [EventTypes.SUBMIT]: [
+            [EventTypes.Submit]: [
               {
                 actions: 'onSubmitWithErrors',
                 cond: ({ errors }) => errors.size > 0,
@@ -143,7 +143,7 @@ export const machine = <T, D, E>() => {
               },
             ],
 
-            [EventTypes.VALIDATE]: {
+            [EventTypes.Validate]: {
               cond: 'hasSchema',
               actions: send(
                 ({ values }, { id }) => {
@@ -153,7 +153,7 @@ export const machine = <T, D, E>() => {
               ),
             },
 
-            [EventTypes.CHANGE_WITH_VALIDATE]: {
+            [EventTypes.ChangeWithValidate]: {
               cond: 'hasSchema',
               actions: [
                 'setValue',
@@ -270,7 +270,7 @@ export const machine = <T, D, E>() => {
 
         error: {
           on: {
-            [EventTypes.SUBMIT]: 'submitting',
+            [EventTypes.Submit]: 'submitting',
           },
         },
       },
