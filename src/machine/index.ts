@@ -244,7 +244,12 @@ export const machine = <T, D, E>() => {
             full: {
               invoke: {
                 src: 'validateSchema',
-                onDone: '#form.submitting',
+                onDone: {
+                  target: '#form.submitting',
+                  actions: assign({
+                    values: (_, { data }) => data,
+                  }),
+                },
                 onError: {
                   target: '#form.idle',
                   actions: assign({
