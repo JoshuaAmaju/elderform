@@ -8,10 +8,6 @@ const schema = z.object({
 
 type Form = z.infer<typeof schema>;
 
-const def = machine<Form, any, any>();
-
-const ctx: Context<Form, any, any> = def.context;
-
 let service: Interpreter<
   Context<Form, any, any>,
   any,
@@ -23,6 +19,8 @@ const submit = () => Promise.resolve({});
 
 describe('machine', () => {
   beforeEach(() => {
+    const def = machine<Form, any, any>();
+
     service = interpret(def).start();
   });
 
@@ -37,7 +35,11 @@ describe('machine', () => {
   });
 
   it('should initialise to idle state', (done) => {
-    const service = interpret(def.withContext({ ...ctx, schema })).start();
+    const def = machine<Form, any, any>();
+
+    const service = interpret(
+      def.withContext({ ...def.context, schema })
+    ).start();
 
     service.onTransition((state) => {
       if (state.matches('idle')) done();
@@ -58,8 +60,10 @@ describe('machine', () => {
   });
 
   it('should have default values', (done) => {
+    const def = machine<Form, any, any>();
+
     const service = interpret(
-      def.withContext({ ...ctx, schema, values: { name: 'Joe' } })
+      def.withContext({ ...def.context, schema, values: { name: 'Joe' } })
     ).start();
 
     service.onTransition(({ context: ctx }) => {
@@ -72,7 +76,9 @@ describe('machine', () => {
 
 describe('field validation', () => {
   beforeEach(() => {
-    service = interpret(def.withContext({ ...ctx, schema })).start();
+    const def = machine<Form, any, any>();
+
+    service = interpret(def.withContext({ ...def.context, schema })).start();
   });
 
   afterAll(() => {
@@ -107,17 +113,15 @@ describe('field validation', () => {
 });
 
 describe('submission', () => {
-  let _ctx: Context<Form>;
-
-  beforeEach(() => {
-    _ctx = { ...ctx, schema };
-  });
-
   it('should submit without error', (done) => {
+    const def = machine<Form, any, any>();
+
     const service = interpret(
-      def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
-        services: { submit },
-      })
+      def
+        .withContext({ ...def.context, schema, values: { name: 'Joe' } })
+        .withConfig({
+          services: { submit },
+        })
     ).start();
 
     service.onTransition((state) => {
@@ -131,10 +135,14 @@ describe('submission', () => {
   });
 
   it('should submit with error', (done) => {
+    const def = machine<Form, any, any>();
+
     const service = interpret(
-      def.withContext({ ..._ctx, values: { name: 'Joe' } }).withConfig({
-        services: { submit: () => Promise.reject(new Error()) },
-      })
+      def
+        .withContext({ ...def.context, schema, values: { name: 'Joe' } })
+        .withConfig({
+          services: { submit: () => Promise.reject(new Error()) },
+        })
     ).start();
 
     service.onTransition((state) => {
@@ -149,7 +157,11 @@ describe('submission', () => {
   });
 
   it('should not submit due to validation error', (done) => {
-    const service = interpret(def.withContext(_ctx)).start();
+    const def = machine<Form, any, any>();
+
+    const service = interpret(
+      def.withContext({ ...def.context, schema })
+    ).start();
 
     service.onTransition((state) => {
       if (state.matches('idle') && state.history?.matches('validating')) {
@@ -162,8 +174,10 @@ describe('submission', () => {
   });
 
   it('should bailout on submission if any field has error', (done) => {
+    const def = machine<Form, any, any>();
+
     const service = interpret(
-      def.withContext(_ctx).withConfig({
+      def.withContext({ ...def.context, schema }).withConfig({
         actions: { onSubmitWithErrors: () => done() },
       })
     ).start();
@@ -176,14 +190,16 @@ describe('submission', () => {
   });
 
   it('should ignore specified fields', (done) => {
+    const def = machine<Form, any, any>();
+
     const service = interpret(
-      def.withContext(_ctx).withConfig({
+      def.withContext({ ...def.context, schema }).withConfig({
         services: { submit },
       })
     ).start();
 
     service.onTransition((state) => {
-      console.log(state.value);
+      console.log(state.value, state.context.errors);
       expect(state.context.states.name).toBe('idle');
       if (state.matches('submitted')) done();
     });
@@ -217,6 +233,7 @@ describe('submission', () => {
 
 describe('setting values', () => {
   beforeEach(() => {
+    const def = machine<Form, any, any>();
     service = interpret(def).start();
   });
 
@@ -284,7 +301,11 @@ describe('setting values', () => {
   });
 
   it('should not unset schema', (done) => {
-    const service = interpret(def.withContext({ ...ctx, schema })).start();
+    const def = machine<Form, any, any>();
+
+    const service = interpret(
+      def.withContext({ ...def.context, schema })
+    ).start();
 
     service.onChange((ctx) => {
       expect(ctx.schema).toBeDefined();
@@ -302,16 +323,18 @@ describe('setting values', () => {
 
 describe('disable schema', () => {
   beforeEach(() => {
+    const def = machine<Form, any, any>();
+
     service = interpret(
-      def.withContext({ ...ctx, schema: false }).withConfig({
+      def.withContext({ ...def.context, schema: false }).withConfig({
         services: { submit },
       })
     ).start();
   });
 
-  // afterAll(() => {
-  //   service = null;
-  // });
+  afterAll(() => {
+    service = null;
+  });
 
   it('should disable schema and not create actors', (done) => {
     service?.onTransition((state) => {

@@ -82,14 +82,6 @@ export const machine = <T, D, E>() => {
       ]),
 
       on: {
-        FAIL: {
-          actions: ['setActorFail', 'setError'],
-        },
-
-        SUCCESS: {
-          actions: ['setActorSuccess', 'removeError'],
-        },
-
         VALIDATING: {
           actions: ['setActorValidating'],
         },
@@ -129,10 +121,18 @@ export const machine = <T, D, E>() => {
         idle: {
           always: {
             target: 'waitingInit',
-            cond: ({ schema }) => !schema && schema !== false,
+            cond: ({ schema }) => !schema && typeof schema !== 'boolean',
           },
 
           on: {
+            FAIL: {
+              actions: ['setActorFail', 'setError'],
+            },
+
+            SUCCESS: {
+              actions: ['setActorSuccess', 'removeError'],
+            },
+
             [EventTypes.Change]: {
               actions: 'setValue',
             },
