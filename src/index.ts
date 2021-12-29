@@ -40,8 +40,8 @@ type SubscriptionValue<T, D, E> = {
 >;
 
 type Service<T, D, E> = {
-  submit(): void;
   state: FormState;
+  submit(...ignore: (keyof T)[]): void;
   subscribe: (
     fn: (
       val: SubscriptionValue<T, D, E>,
@@ -73,13 +73,11 @@ const create = <T, D = any, E = Error>({
   const service = interpret(
     def
       .withContext({
-        ...def.context, // doesn't really do anything, just to appease typescript
+        ...def.context,
         schema,
         dataUpdatedAt: 0,
         errorUpdatedAt: 0,
-        errors: new Map(),
         values: initialValues ?? {},
-        __validationMarker: new Set(),
       })
       .withConfig({
         services: {
@@ -134,7 +132,9 @@ const create = <T, D = any, E = Error>({
     state,
     __service: service,
     __generate: generate,
-    submit: () => service.send(EventTypes.Submit),
+    submit: (...ignore) => {
+      service.send({ ignore, type: EventTypes.Submit });
+    },
     subscribe: (fn) => {
       const listener: (
         s: State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>,
