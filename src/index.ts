@@ -90,6 +90,7 @@ const create = <T, D = any, E = Error>({
 
   const { initialState } = service;
 
+  // get the initial starting state
   const state: FormState = initialState.matches('waitingInit')
     ? 'idle'
     : (initialState.value as any);
