@@ -5,6 +5,7 @@ import { identity, keys, length, map, values } from 'ramda';
 import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { Schema } from '../types';
 import { actor } from './actor';
+import * as z from 'zod';
 
 export enum EventTypes {
   SET = 'set',
@@ -27,8 +28,8 @@ export type Context<T, D = any, E = Error> = {
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
   errors: Map<keyof T, Error>;
-  schema?: Schema<T> | boolean;
   __validationMarker: Set<string>;
+  schema?: z.ZodObject<any> | boolean;
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
   values: { [K in keyof T]?: T[K] | null };
@@ -45,7 +46,7 @@ export type States<T, D = any, E = any> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
   | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
   | {
-      value: 'validating';
+      value: 'validating' | { validating: 'actors' | 'full' };
       context: Context<T, D, E> & { schema: Schema<T> };
     }
   | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } }
@@ -69,6 +70,7 @@ const { pure, choose } = actions;
 export const machine = <T, D = any, E = any>() => {
   return createMachine<Context<T, D, E>, Events<T, D, E>, States<T, D, E>>(
     {
+      id: 'form',
       initial: 'idle',
 
       entry: choose([
@@ -143,8 +145,8 @@ export const machine = <T, D = any, E = any>() => {
                 cond: ({ errors }) => errors.size > 0,
               },
               {
-                target: 'validating',
                 cond: 'hasSchema',
+                target: 'validating',
               },
               {
                 target: 'submitting',
@@ -174,46 +176,73 @@ export const machine = <T, D = any, E = any>() => {
         },
 
         validating: {
-          exit: assign({
-            __validationMarker: (_) => new Set(),
-          }),
+          initial: 'actors',
 
-          entry: pure(({ schema, values }) => {
-            return pipe(
-              schema,
-              keys,
-              map((key) => {
-                const value = values[key as keyof T];
-                return send({ value, type: 'VALIDATE' }, { to: key });
-              })
-            );
-          }),
+          states: {
+            actors: {
+              exit: assign({
+                __validationMarker: (_) => new Set(),
+              }),
 
-          always: [
-            {
-              target: 'idle',
-              cond: (ctx) => {
-                return (
-                  ctx.errors.size > 0 &&
-                  ctx.__validationMarker.size >= pipe(ctx.schema, keys, length)
+              entry: pure(({ schema, values }) => {
+                return pipe(
+                  (schema as z.ZodObject<any>).shape,
+                  keys,
+                  map((key) => {
+                    const value = values[key as keyof T];
+                    return send({ value, type: 'VALIDATE' }, { to: key });
+                  })
                 );
+              }),
+
+              always: [
+                {
+                  target: '#form.idle',
+                  cond: (ctx) => {
+                    return (
+                      ctx.errors.size > 0 &&
+                      ctx.__validationMarker.size >=
+                        pipe(
+                          (ctx.schema as z.ZodObject<any>).shape,
+                          keys,
+                          length
+                        )
+                    );
+                  },
+                },
+                {
+                  target: 'full',
+                  cond: ({ schema, __validationMarker }) => {
+                    return (
+                      __validationMarker.size >=
+                      pipe((schema as z.ZodObject<any>).shape, keys, length)
+                    );
+                  },
+                },
+              ],
+
+              on: {
+                FAIL: {
+                  actions: ['mark', 'setActorFail', 'setError'],
+                },
+
+                SUCCESS: {
+                  actions: ['mark', 'setActorSuccess', 'removeError'],
+                },
               },
             },
-            {
-              target: 'submitting',
-              cond: ({ schema, __validationMarker }) => {
-                return __validationMarker.size >= pipe(schema, keys, length);
+
+            full: {
+              invoke: {
+                src: 'validateSchema',
+                onDone: '#form.submitting',
+                onError: {
+                  target: '#form.idle',
+                  actions: assign({
+                    errors: (_, { data }) => data,
+                  }),
+                },
               },
-            },
-          ],
-
-          on: {
-            FAIL: {
-              actions: ['mark', 'setActorFail', 'setError'],
-            },
-
-            SUCCESS: {
-              actions: ['mark', 'setActorSuccess', 'removeError'],
             },
           },
         },
@@ -230,7 +259,9 @@ export const machine = <T, D = any, E = any>() => {
               actions: assign({
                 states: ({ schema }) => {
                   return Object.fromEntries(
-                    keys(schema).map((key) => [key, ActorStates.IDLE] as const)
+                    keys((schema as z.ZodObject<any>).shape).map(
+                      (key) => [key, ActorStates.IDLE] as const
+                    )
                   ) as Context<T, D, E>['states'];
                 },
               }),
@@ -268,7 +299,9 @@ export const machine = <T, D = any, E = any>() => {
     {
       guards: {
         hasSchema: ({ schema }) =>
-          typeof schema !== 'boolean' && !!schema && values(schema).length > 0,
+          typeof schema !== 'boolean' &&
+          !!schema &&
+          values((schema as z.ZodObject<any>).shape).length > 0,
       },
 
       actions: {
@@ -297,7 +330,7 @@ export const machine = <T, D = any, E = any>() => {
         setInitialStates: assign({
           states: ({ schema }) => {
             const entries = pipe(
-              schema,
+              (schema as z.ZodObject<any>).shape,
               O.fromNullable,
               O.map(
                 flow(
@@ -317,15 +350,17 @@ export const machine = <T, D = any, E = any>() => {
             const entries = pipe(
               schema,
               O.fromNullable,
-              O.filter((s) => s !== false),
+              O.filter((s) => typeof s !== 'boolean'),
               O.map((s) => {
+                const { shape } = s as z.ZodObject<any>;
+
                 return pipe(
-                  keys(s),
+                  keys(shape),
                   map((key) => {
                     const act = spawn(
                       actor({
                         id: key as string,
-                        validator: (s as Schema)[key],
+                        validator: shape[key],
                       }),
                       key as string
                     );
@@ -361,14 +396,6 @@ export const machine = <T, D = any, E = any>() => {
           },
         }),
 
-        // clearErrors: assign({
-        //   errors: (_) => new Map(),
-        // }),
-
-        // clearValues: assign({
-        //   values: (_) => ({} as T),
-        // }),
-
         mark: assign({
           __validationMarker: ({ __validationMarker }, { id }: any) => {
             __validationMarker.add(id);
@@ -403,6 +430,25 @@ export const machine = <T, D = any, E = any>() => {
 
       services: {
         submit: () => Promise.resolve(),
+
+        validateSchema: async ({ schema, values }) => {
+          try {
+            return await (schema as z.ZodObject<any>).parseAsync(values);
+          } catch (error) {
+            let err = error;
+
+            if (error instanceof z.ZodError) {
+              const errors = error.issues.map((e) => {
+                const [path] = e.path;
+                return [path, e.message] as const;
+              });
+
+              err = new Map(errors);
+            }
+
+            throw err;
+          }
+        },
       },
     }
   );
