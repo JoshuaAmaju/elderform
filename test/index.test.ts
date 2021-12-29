@@ -199,7 +199,6 @@ describe('submission', () => {
     ).start();
 
     service.onTransition((state) => {
-      console.log(state.value, state.context.errors);
       expect(state.context.states.name).toBe('idle');
       if (state.matches('submitted')) done();
     });
