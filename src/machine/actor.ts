@@ -79,11 +79,9 @@ export const actor = ({
           } catch (e) {
             let err = (e as Error)?.message;
 
-            // console.log('error', e);
-
             if (e instanceof ZodError) err = e.issues[0].message;
 
-            return Promise.reject(err);
+            throw err;
           }
         },
       },

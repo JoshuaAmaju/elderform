@@ -1,9 +1,9 @@
 import { flow } from 'fp-ts/lib/function';
 import { pipe } from 'fp-ts/lib/function';
-import * as O from 'fp-ts/Option';
+import { fromNullable, map as omap, fold, filter } from 'fp-ts/Option';
 import { identity, keys, length, map, values } from 'ramda';
 import { actions, ActorRef, assign, createMachine, send, spawn } from 'xstate';
-import { Schema } from '../types';
+
 import { actor } from './actor';
 import * as z from 'zod';
 
@@ -44,12 +44,15 @@ export type SetType<T, D, E> =
 
 export type States<T, D = any, E = any> =
   | { value: 'waitingInit'; context: Context<T, D, E> }
-  | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
+  | { value: 'idle'; context: Context<T, D, E> & { schema: z.ZodObject<any> } }
   | {
       value: 'validating' | { validating: 'actors' | 'full' };
-      context: Context<T, D, E> & { schema: Schema<T> };
+      context: Context<T, D, E> & { schema: z.ZodObject<any> };
     }
-  | { value: 'submitting'; context: Context<T, D, E> & { schema: Schema<T> } }
+  | {
+      value: 'submitting';
+      context: Context<T, D, E> & { schema: z.ZodObject<any> };
+    }
   | { value: 'submitted'; context: Context<T, D, E> & { data: D } }
   | { value: 'error'; context: Context<T, D, E> & { error: E } };
 
@@ -122,11 +125,8 @@ export const machine = <T, D = any, E = any>() => {
       },
 
       states: {
-        waitingInit: {
-          meta: {
-            summary: 'Wait for the machine to be initialised with a schema',
-          },
-        },
+        // Wait for the machine to be initialised with a schema
+        waitingInit: {},
 
         idle: {
           always: {
@@ -185,14 +185,13 @@ export const machine = <T, D = any, E = any>() => {
               }),
 
               entry: pure(({ schema, values }) => {
-                return pipe(
-                  (schema as z.ZodObject<any>).shape,
-                  keys,
-                  map((key) => {
-                    const value = values[key as keyof T];
-                    return send({ value, type: 'VALIDATE' }, { to: key });
-                  })
-                );
+                return keys((schema as z.ZodObject<any>).shape).map((key) => {
+                  const value = values[key as keyof T];
+                  return send(
+                    { value, type: 'VALIDATE' },
+                    { to: key as string }
+                  );
+                });
               }),
 
               always: [
@@ -202,11 +201,7 @@ export const machine = <T, D = any, E = any>() => {
                     return (
                       ctx.errors.size > 0 &&
                       ctx.__validationMarker.size >=
-                        pipe(
-                          (ctx.schema as z.ZodObject<any>).shape,
-                          keys,
-                          length
-                        )
+                        keys((ctx.schema as z.ZodObject<any>).shape).length
                     );
                   },
                 },
@@ -215,7 +210,7 @@ export const machine = <T, D = any, E = any>() => {
                   cond: ({ schema, __validationMarker }) => {
                     return (
                       __validationMarker.size >=
-                      pipe((schema as z.ZodObject<any>).shape, keys, length)
+                      keys((schema as z.ZodObject<any>).shape).length
                     );
                   },
                 },
@@ -331,14 +326,14 @@ export const machine = <T, D = any, E = any>() => {
           states: ({ schema }) => {
             const entries = pipe(
               (schema as z.ZodObject<any>).shape,
-              O.fromNullable,
-              O.map(
+              fromNullable,
+              omap(
                 flow(
                   keys,
                   map((key) => [key, ActorStates.IDLE])
                 )
               ),
-              O.fold(() => [], identity)
+              fold(() => [], identity)
             );
 
             return Object.fromEntries(entries);
@@ -349,27 +344,24 @@ export const machine = <T, D = any, E = any>() => {
           actors: ({ schema }) => {
             const entries = pipe(
               schema,
-              O.fromNullable,
-              O.filter((s) => typeof s !== 'boolean'),
-              O.map((s) => {
+              fromNullable,
+              filter((s) => typeof s !== 'boolean'),
+              omap((s) => {
                 const { shape } = s as z.ZodObject<any>;
 
-                return pipe(
-                  keys(shape),
-                  map((key) => {
-                    const act = spawn(
-                      actor({
-                        id: key as string,
-                        validator: shape[key],
-                      }),
-                      key as string
-                    );
+                return keys(shape).map((key) => {
+                  const act = spawn(
+                    actor({
+                      id: key as string,
+                      validator: shape[key],
+                    }),
+                    key as string
+                  );
 
-                    return [key, act] as const;
-                  })
-                );
+                  return [key, act] as const;
+                });
               }),
-              O.fold(() => [], identity)
+              fold(() => [], identity)
             );
 
             return Object.fromEntries(entries);
