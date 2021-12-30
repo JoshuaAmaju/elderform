@@ -1,11 +1,12 @@
 import type { Interpreter, State } from 'xstate';
 import { interpret } from 'xstate';
-import type { ActorStates, Context, Events, States } from '../src/machine';
+import { ActorStates, Context, Events, States } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
 
 type Handler<T> = {
   value?: T | null;
   state: ActorStates;
+  validate: () => void;
   set: (value: T) => void;
   setWithValidate: (value: T) => void;
 };
@@ -108,6 +109,9 @@ export const createForm = <T, D = any, E = Error>({
       const handler: Handler<T[typeof _id]> = {
         state,
         value,
+        validate: () => {
+          service.send(EventTypes.Validate);
+        },
         set: (value) => {
           service.send({ id, value, type: EventTypes.Change });
         },
