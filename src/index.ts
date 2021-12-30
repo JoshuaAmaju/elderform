@@ -32,9 +32,9 @@ type SubscriptionValue<T, D, E> = {
   submittedWithError?: boolean;
   validatedWithErrors?: boolean;
   submittedWithoutError?: boolean;
-} & Pick<
+} & Omit<
   Context<T, D, E>,
-  'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
+  '__ignore' | '__validationMarker' | 'actors' | 'schema'
 >;
 
 type Service<T, D, E> = {
@@ -138,7 +138,7 @@ export const createForm = <T, D = any, E = Error>({
         s: State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>,
         e: Events<T, D, E>
       ) => void = (_state) => {
-        const { data, error, errors, values, dataUpdatedAt, errorUpdatedAt } =
+        const { __ignore, __validationMarker, actors, schema, ...rest } =
           _state.context;
 
         const handlers = generate(_state.context);
@@ -149,10 +149,12 @@ export const createForm = <T, D = any, E = Error>({
         const isValidating = _state.matches('validating');
         const isIdle = _state.matches('idle') || _state.matches('waitingInit');
 
-        const submittedWithoutError = submitted && !error;
-        const submittedWithError = isError && !!error;
+        const submittedWithoutError = submitted && !rest.error;
+        const submittedWithError = isError && !!rest.error;
         const validatedWithErrors =
-          isIdle && _state.history?.matches('validating') && errors.size > 0;
+          isIdle &&
+          _state.history?.matches('validating') &&
+          rest.errors.size > 0;
 
         const state: FormState = _state.matches('waitingInit')
           ? 'idle'
@@ -160,14 +162,8 @@ export const createForm = <T, D = any, E = Error>({
 
         fn(
           {
-            data,
-            error,
+            ...rest,
             state,
-            errors,
-            values,
-
-            dataUpdatedAt,
-            errorUpdatedAt,
 
             // form states
             isIdle,
