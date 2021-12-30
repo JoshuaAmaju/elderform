@@ -1,103 +1,129 @@
-# DTS User Guide
+# Popform
 
-Congrats! You just saved yourself hours of work by bootstrapping this project with DTS. Let’s get you oriented with what’s here and how to use it.
+> Form handling without tears and predictable form state based on defined parameters
 
-> This DTS setup is meant for developing libraries (not apps!) that can be published to NPM. If you’re looking to build a Node app, you could use `ts-node-dev`, plain `ts-node`, or simple `tsc`.
+### Popform gives you everything you need to create robust forms and stays out of your way, while still having a small blueprint.
 
-> If you’re new to TypeScript, checkout [this handy cheatsheet](https://devhints.io/typescript)
+### Features
 
-## Commands
+- Async validation
+- Predictable form state
+- Full typescript support
+- Lazy schema initialisation
+- Tiny: fully packed in just ~5kb
+- Framework agnostic <!-- (with wrappers for X) -->
+- Ships with sensible defaults for form handling
+- > No more "how do I prevent multple submission while currently submitting"
 
-DTS scaffolds your new library inside `/src`.
+### Quick start
 
-To run DTS, use:
-
-```bash
-npm start # or yarn start
+```
+pnpm add xstate zod popform
 ```
 
-This builds to `/dist` and runs the project in watch mode so any edits you save inside `src` causes a rebuild to `/dist`.
+```ts
+import * as z from 'zod';
+import {createForm} from 'popform';
 
-To do a one-off build, use `npm run build` or `yarn build`.
+const form = createForm({
+  schema: z.object({
+    name: z.string(),
+  }),
+  onSubmit: () => {
+    return Promise.resolve();
+  },
+});
 
-To run tests, use `npm test` or `yarn test`.
+form.subscribe((state) => {
+  ...
+});
 
-## Configuration
-
-Code quality is set up for you with `prettier`, `husky`, and `lint-staged`. Adjust the respective fields in `package.json` accordingly.
-
-### Jest
-
-Jest tests are set up to run with `npm test` or `yarn test`.
-
-### Bundle Analysis
-
-[`size-limit`](https://github.com/ai/size-limit) is set up to calculate the real cost of your library with `npm run size` and visualize the bundle with `npm run analyze`.
-
-#### Setup Files
-
-This is the folder structure we set up for you:
-
-```txt
-/src
-  index.ts        # EDIT THIS
-/test
-  index.test.ts   # EDIT THIS
-.gitignore
-package.json
-README.md         # EDIT THIS
-tsconfig.json
+form.submit();
 ```
 
-### Rollup
+- [Quick start](#quick-start)
+- [API](#api)
+- [Examples](#examples)
 
-DTS uses [Rollup](https://rollupjs.org) as a bundler and generates multiple rollup configs for various module formats and build settings. See [Optimizations](#optimizations) for details.
+## API
 
-### TypeScript
+`createForm(config)`
 
-`tsconfig.json` is set up to interpret `dom` and `esnext` types, as well as `react` for `jsx`. Adjust according to your needs.
+- `config` (object) - config object from creating the form state machine (see below)
 
-## Continuous Integration
+### Returns:
 
-### GitHub Actions
+An object which providess
 
-Two actions are added by default:
+- `form.state` (idle) - the form's initial state
+- `form.submit` ((...ignore?: string[]) => void) - a function to submit the form
+- `form.subscribe` ((stateListener) => () => void) - a state listener with the current state of the form (see below for [stateListener](#state-listener))
+- `form.__service` - the base service (xstate interpreter), made available for library authors to creating wrappers for frameworks
 
-- `main` which installs deps w/ cache, lints, tests, and builds on all pushes against a Node and OS matrix
-- `size` which comments cost comparison of your library on every pull request using [`size-limit`](https://github.com/ai/size-limit)
+### Config:
 
-## Optimizations
+- `schema?` (boolean | object) - a zod object (see [here](https://www.npmjs.com/package/zod) for documentation) or `false` to disable schema validation
+- `onSubmit(values: object)` - an async function that handles form submission
 
-Please see the main `dts` [optimizations docs](https://github.com/weiran-zsd/dts-cli#optimizations). In particular, know that you can take advantage of development-only optimizations:
+---
 
-```js
-// ./types/index.d.ts
-declare var __DEV__: boolean;
+### State Listener
 
-// inside your code...
-if (__DEV__) {
-  console.log('foo');
-}
-```
+`form.subscribe(`[currentState](#currentState), [handlers](#handlers)`)`
 
-You can also choose to install and use [invariant](https://github.com/weiran-zsd/dts-cli#invariant) and [warning](https://github.com/weiran-zsd/dts-cli#warning) functions.
+#### `currentState`
 
-## Module Formats
+- state - [Form State](#form-state)
 
-CJS, ESModules, and UMD module formats are supported.
+- Boolean flags derived from form `state`
 
-The appropriate paths are configured in `package.json` and `dist/index.js` accordingly. Please report if any issues are found.
+  - `isIdle`
+  - `isValidating`
+  - `isSubmitting`
+  - `isSuccess`
+  - `submitted` - similar to `isSuccess`
+  - `isError`
+  - `validatedWithErrors` - derived from validating state and if errors property is not empty
+  - `submittedWithoutError` - derived from submitted state and if errors property is empty
+  - `submittedWithError` - derived from error state and if errors property is not empty.
 
-## Named Exports
+- Others
+  - `values` (object) - form values (Defaults to an empty object)
+  - `data` (TData | null)
+    - Defaults to `undefined`
+    - The last data returned from successfully submission
+  - `error` (TError | null)
+    - Defaults to `undefined`
+    - The error object last from submission, if an error was thrown
+  - `errors` (Map<string, string>) - a map containing errors for each field after validation
+  - `dataUpdatedAt` (number) -
+    The timestamp for when the form most recently submitted successfully and returned data (Defaults to `0`)
+  - `errorUpdatedAt` (number) -
+    The timestamp for when the form most recently failed to submit successfully and returned error (Defaults to `0`).
 
-Per Palmer Group guidelines, [always use named exports.](https://github.com/palmerhq/typescript#exports) Code split inside your React app instead of your React library.
+#### `handlers`
 
-## Including Styles
+An `object` containing handlers for each field present in the schema
 
-There are many ways to ship styles, including with CSS-in-JS. DTS has no opinion on this, configure how you like.
+| key                        | type                        |
+| -------------------------- | --------------------------- |
+| `state`                    | [Field State](#field-state) |
+| `value`                    | `T` or `null`               |
+| `set` or `setWithValidate` | `(value: T) => void`        |
 
-For vanilla CSS, you can include it at the root directory and add it to the `files` section in your `package.json`, so that it can be imported separately by your users and run through their bundler's loader.
+---
 
-## Publishing to NPM
+### Form State
 
-We recommend using [np](https://github.com/sindresorhus/np).
+- `idle` - when the form isn't actively performing any operation
+- `validating` - when the defined schema is being validated
+- `submitting` - when the is being submitted
+- `submitted` - if the form submitted successfully without any error
+- `error` - if the submission attempt resulted in an error. The error is contained in the corresponding error property
+
+### Field State
+
+- `idle` - when the field is not performing any action
+- `validating` - when the field is validating
+- `success` - if the field was validated successfully
+- `failed` - if the field failed validation
