@@ -54,6 +54,7 @@ type Setter<T, D, E> = <S extends SetType<T, D, E>, N extends S['name']>(
 type Service<T, D, E> = {
   state: FormState;
   set: Setter<T, D, E>;
+  validate: (name: keyof T) => void;
   submit(...ignore: (keyof T)[]): void;
   setField: <K extends keyof T>(name: K, value: T[K]) => void;
   subscribe: (
@@ -149,6 +150,9 @@ export const createForm = <T, D = any, E = Error>({
     state,
     __service: service,
     __generate: generate,
+    validate: (name) => {
+      service.send({ type: EventTypes.Validate, id: name });
+    },
     submit: (...ignore) => {
       service.send({ ignore, type: EventTypes.Submit });
     },
@@ -230,3 +234,5 @@ const form = createForm<Form, string, Error>({
 });
 
 form.set('errors', new Map());
+
+form.setField('age', 1);
