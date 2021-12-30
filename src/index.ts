@@ -17,10 +17,8 @@ type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
 export type FormState =
   | 'idle'
   | 'validating'
-  | 'validatedWithErrors'
   | 'submitting'
   | 'submitted'
-  | 'submittedWithError'
   | 'error';
 
 type SubscriptionValue<T, D, E> = {
@@ -63,7 +61,7 @@ export type Config<T, D = any, E = Error> = {
   initialValues?: { [K in keyof T]?: T[K] };
 };
 
-const create = <T, D = any, E = Error>({
+export const createForm = <T, D = any, E = Error>({
   schema,
   onSubmit,
   initialValues,
@@ -158,10 +156,6 @@ const create = <T, D = any, E = Error>({
 
         const state: FormState = _state.matches('waitingInit')
           ? 'idle'
-          : validatedWithErrors
-          ? 'validatedWithErrors'
-          : _state.matches('error')
-          ? 'submittedWithError'
           : (_state.value as FormState);
 
         fn(
@@ -198,5 +192,3 @@ const create = <T, D = any, E = Error>({
     },
   };
 };
-
-export default create;
