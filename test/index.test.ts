@@ -252,7 +252,7 @@ describe('setting values', () => {
 
     const def = machine<Form, any, any>();
 
-    let value: Form = { age: 20, name: 'John' };
+    let value = { age: 20, name: 'John' };
 
     let service = interpret(
       def.withContext({ ...def.context, schema, errors: new Map() })
