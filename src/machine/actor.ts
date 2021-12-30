@@ -66,8 +66,8 @@ export const actor = ({
           return { id, type: 'FAIL', reason: data };
         }),
 
-        sendSuccess: sendParent((_) => {
-          return { id, type: 'SUCCESS' };
+        sendSuccess: sendParent((_, { data }: any) => {
+          return { id, value: data, type: 'SUCCESS' };
         }),
       },
 
