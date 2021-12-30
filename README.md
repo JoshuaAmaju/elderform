@@ -34,7 +34,7 @@ const form = createForm({
   },
 });
 
-form.subscribe(() => {
+form.subscribe((state) => {
   ...
 });
 
