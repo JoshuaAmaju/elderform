@@ -40,7 +40,6 @@ export type SubscriptionValue<T, D, E> = {
 >;
 
 type Service<T, D, E> = {
-  state: FormState;
   submit(...ignore: (keyof T)[]): void;
   subscribe: (
     fn: (
@@ -86,13 +85,6 @@ export const createForm = <T, D = any, E = Error>({
       })
   ).start();
 
-  const { initialState } = service;
-
-  // get the initial starting state
-  const state: FormState = initialState.matches('waitingInit')
-    ? 'idle'
-    : (initialState.value as any);
-
   const generate: Generate<T, D, E> = ({
     states,
     schema,
@@ -135,17 +127,13 @@ export const createForm = <T, D = any, E = Error>({
   };
 
   return {
-    state,
     __service: service,
     __generate: generate,
     submit: (...ignore) => {
       service.send({ ignore, type: EventTypes.Submit });
     },
     subscribe: (fn) => {
-      const listener: (
-        s: State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>,
-        e: Events<T, D, E>
-      ) => void = (_state) => {
+      const subscription = service.subscribe((_state) => {
         const { __ignore, __validationMarker, actors, schema, ...rest } =
           _state.context;
 
@@ -166,14 +154,14 @@ export const createForm = <T, D = any, E = Error>({
 
         const state: FormState = _state.matches('waitingInit')
           ? 'idle'
-          : (_state.value as FormState);
+          : (_state.value as any);
 
         fn(
           {
             ...rest,
-            state,
 
             // form states
+            state,
             isIdle,
             isError,
             submitted,
@@ -186,12 +174,10 @@ export const createForm = <T, D = any, E = Error>({
           },
           handlers
         );
-      };
-
-      service.onTransition(listener);
+      });
 
       return () => {
-        service.off(listener);
+        subscription.unsubscribe();
       };
     },
   };
