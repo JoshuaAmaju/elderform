@@ -112,7 +112,7 @@ export const machine = <T, D, E>() => {
                         case 'values':
                         case 'errors':
                           console.warn(
-                            `setting value of ${name} without defining a schema`
+                            `setting value of "${name}" without defining a schema`
                           );
                           break;
                       }
