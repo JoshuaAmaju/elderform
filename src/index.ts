@@ -9,7 +9,7 @@ import type {
 } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
 
-import * as z from 'zod';
+// import * as z from 'zod';
 
 type Handler<T> = {
   value?: T | null;
@@ -222,17 +222,17 @@ export const createForm = <T, D = any, E = Error>({
   };
 };
 
-const schema = z.object({
-  age: z.number(),
-});
+// const schema = z.object({
+//   age: z.number(),
+// });
 
-type Form = z.infer<typeof schema>;
+// type Form = z.infer<typeof schema>;
 
-const form = createForm<Form, string, Error>({
-  schema,
-  onSubmit: () => Promise.resolve(''),
-});
+// const form = createForm<Form, string, Error>({
+//   schema,
+//   onSubmit: () => Promise.resolve(''),
+// });
 
-form.set('errors', new Map());
+// form.set('errors', new Map());
 
-form.setField('age', 1);
+// form.validate('age');
