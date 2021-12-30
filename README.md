@@ -59,10 +59,14 @@ An object which providess
 - `form.submit` ((...ignore?: string[]) => void) - a function to submit the form
 - `form.subscribe` ((stateListener) => () => void) - a state listener with the current state of the form (see below for [stateListener](#state-listener))
 - `form.__service` - the base service (xstate interpreter), made available for library authors to creating wrappers for frameworks
+- `form.validate` ((field) => void) - function to validate given field
+- `form.set` ((name, value) => void) - function to set values for `data`, `error`, `errors`, `schema` or `values`
+- `form.setField` ((name, value) => void) - function to set value of given fields in schema
 
 ### Config:
 
 - `schema?` (boolean | object) - a zod object (see [here](https://www.npmjs.com/package/zod) for documentation) or `false` to disable schema validation
+- `initialValues?` (object) - initial form values
 - `onSubmit(values: object)` - an async function that handles form submission
 
 ---
@@ -110,6 +114,7 @@ An `object` containing handlers for each field present in the schema
 | `state`                    | [Field State](#field-state) |
 | `value`                    | `T` or `null`               |
 | `set` or `setWithValidate` | `(value: T) => void`        |
+| `validate`                 | `() => void`                |
 
 ---
 
