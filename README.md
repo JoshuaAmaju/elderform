@@ -66,6 +66,7 @@ An object which providess
 ### Config:
 
 - `schema?` (boolean | object) - a zod object (see [here](https://www.npmjs.com/package/zod) for documentation) or `false` to disable schema validation
+- `initialValues?` (object) - initial form values
 - `onSubmit(values: object)` - an async function that handles form submission
 
 ---
