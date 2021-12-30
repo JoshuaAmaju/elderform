@@ -51,4 +51,27 @@ describe('actor', () => {
 
     service.send({ type: 'VALIDATE', value: 'Joe' });
   });
+
+  it('validation should pass and resolve with new value', (done) => {
+    const service = interpret(
+      actor({
+        id: '1',
+        validator: string().transform(() => 'Jane'),
+      }).withConfig({
+        actions: {
+          sendSuccess: (_, { data }: any) => {
+            expect(data).toBe('Jane');
+          },
+        },
+      })
+    ).start();
+
+    service.onTransition((state) => {
+      if (state.matches('idle') && state.history?.matches('validating')) {
+        done();
+      }
+    });
+
+    service.send({ type: 'VALIDATE', value: 'Joe' });
+  });
 });
