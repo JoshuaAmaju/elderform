@@ -1,4 +1,4 @@
-import type { Interpreter, State } from 'xstate';
+import type { Interpreter } from 'xstate';
 import { interpret } from 'xstate';
 import type {
   ActorStates,
@@ -8,6 +8,10 @@ import type {
   SetType,
 } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
+
+declare var __DEV__: boolean;
+
+export type Handler<T> = {
 
 // import * as z from 'zod';
 
@@ -30,7 +34,7 @@ export type FormState =
   | 'submitted'
   | 'error';
 
-type SubscriptionValue<T, D, E> = {
+export type SubscriptionValue<T, D, E> = {
   state: FormState;
   isIdle: boolean;
   isError: boolean;
@@ -41,9 +45,9 @@ type SubscriptionValue<T, D, E> = {
   submittedWithError?: boolean;
   validatedWithErrors?: boolean;
   submittedWithoutError?: boolean;
-} & Pick<
+} & Omit<
   Context<T, D, E>,
-  'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
+  '__ignore' | '__validationMarker' | 'actors' | 'schema'
 >;
 
 type Setter<T, D, E> = <S extends SetType<T, D, E>, N extends S['name']>(
@@ -52,7 +56,6 @@ type Setter<T, D, E> = <S extends SetType<T, D, E>, N extends S['name']>(
 ) => void;
 
 type Service<T, D, E> = {
-  state: FormState;
   set: Setter<T, D, E>;
   validate: (name: keyof T) => void;
   submit(...ignore: (keyof T)[]): void;
@@ -101,19 +104,18 @@ export const createForm = <T, D = any, E = Error>({
       })
   ).start();
 
-  const { initialState } = service;
-
-  // get the initial starting state
-  const state: FormState = initialState.matches('waitingInit')
-    ? 'idle'
-    : (initialState.value as any);
-
   const generate: Generate<T, D, E> = ({
     states,
     schema,
     values,
   }: Context<T, D, E>) => {
-    if (!schema || typeof schema === 'boolean') return;
+    if (!schema || typeof schema === 'boolean') {
+      if (__DEV__) {
+        console.warn('Cannot generate handlers without schema defined');
+      }
+
+      return;
+    }
 
     const { shape } = schema;
 
@@ -147,7 +149,6 @@ export const createForm = <T, D = any, E = Error>({
   };
 
   return {
-    state,
     __service: service,
     __generate: generate,
     validate: (name) => {
@@ -163,11 +164,8 @@ export const createForm = <T, D = any, E = Error>({
       service.send({ name, value: value as any, type: EventTypes.Set });
     },
     subscribe: (fn) => {
-      const listener: (
-        s: State<Context<T, D, E>, Events<T, D, E>, any, States<T, D, E>>,
-        e: Events<T, D, E>
-      ) => void = (_state) => {
-        const { data, error, errors, values, dataUpdatedAt, errorUpdatedAt } =
+      const subscription = service.subscribe((_state) => {
+        const { __ignore, __validationMarker, actors, schema, ...rest } =
           _state.context;
 
         const handlers = generate(_state.context);
@@ -178,27 +176,23 @@ export const createForm = <T, D = any, E = Error>({
         const isValidating = _state.matches('validating');
         const isIdle = _state.matches('idle') || _state.matches('waitingInit');
 
-        const submittedWithoutError = submitted && !error;
-        const submittedWithError = isError && !!error;
+        const submittedWithoutError = submitted && !rest.error;
+        const submittedWithError = isError && !!rest.error;
         const validatedWithErrors =
-          isIdle && _state.history?.matches('validating') && errors.size > 0;
+          isIdle &&
+          _state.history?.matches('validating') &&
+          rest.errors.size > 0;
 
         const state: FormState = _state.matches('waitingInit')
           ? 'idle'
-          : (_state.value as FormState);
+          : (_state.value as any);
 
         fn(
           {
-            data,
-            error,
-            state,
-            errors,
-            values,
-
-            dataUpdatedAt,
-            errorUpdatedAt,
+            ...rest,
 
             // form states
+            state,
             isIdle,
             isError,
             submitted,
@@ -211,12 +205,10 @@ export const createForm = <T, D = any, E = Error>({
           },
           handlers
         );
-      };
-
-      service.onTransition(listener);
+      });
 
       return () => {
-        service.off(listener);
+        subscription.unsubscribe();
       };
     },
   };

@@ -4,6 +4,8 @@ import type { ZodIssue, ZodObject } from 'zod';
 import { ZodError } from 'zod';
 import { actor } from './actor';
 
+declare var __DEV__: boolean;
+
 export type ActorStates = 'idle' | 'failed' | 'success' | 'validating';
 
 export enum EventTypes {
@@ -102,7 +104,21 @@ export const machine = <T, D, E>() => {
           {
             actions: choose([
               {
-                actions: 'set',
+                actions: [
+                  'set',
+                  (_, { name }) => {
+                    if (__DEV__) {
+                      switch (name) {
+                        case 'values':
+                        case 'errors':
+                          console.warn(
+                            `setting value of ${name} without defining a schema`
+                          );
+                          break;
+                      }
+                    }
+                  },
+                ],
                 cond: (_, e) => e.name !== 'schema',
               },
               {
