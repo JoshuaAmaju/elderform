@@ -1,4 +1,4 @@
-import type { Interpreter, State } from 'xstate';
+import type { Interpreter } from 'xstate';
 import { interpret } from 'xstate';
 import type { ActorStates, Context, Events, States } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
