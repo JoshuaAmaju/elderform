@@ -1,11 +1,20 @@
 import type { Interpreter, State } from 'xstate';
 import { interpret } from 'xstate';
-import type { ActorStates, Context, Events, States } from '../src/machine';
+import type {
+  ActorStates,
+  Context,
+  Events,
+  States,
+  SetType,
+} from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
+
+// import * as z from 'zod';
 
 type Handler<T> = {
   value?: T | null;
   state: ActorStates;
+  validate: () => void;
   set: (value: T) => void;
   setWithValidate: (value: T) => void;
 };
@@ -37,9 +46,17 @@ type SubscriptionValue<T, D, E> = {
   'data' | 'error' | 'errors' | 'values' | 'dataUpdatedAt' | 'errorUpdatedAt'
 >;
 
+type Setter<T, D, E> = <S extends SetType<T, D, E>, N extends S['name']>(
+  name: N,
+  value: Extract<S, { name: N }>['value']
+) => void;
+
 type Service<T, D, E> = {
   state: FormState;
+  set: Setter<T, D, E>;
+  validate: (name: keyof T) => void;
   submit(...ignore: (keyof T)[]): void;
+  setField: <K extends keyof T>(name: K, value: T[K]) => void;
   subscribe: (
     fn: (
       val: SubscriptionValue<T, D, E>,
@@ -108,6 +125,9 @@ export const createForm = <T, D = any, E = Error>({
       const handler: Handler<T[typeof _id]> = {
         state,
         value,
+        validate: () => {
+          service.send(EventTypes.Validate);
+        },
         set: (value) => {
           service.send({ id, value, type: EventTypes.Change });
         },
@@ -130,8 +150,17 @@ export const createForm = <T, D = any, E = Error>({
     state,
     __service: service,
     __generate: generate,
+    validate: (name) => {
+      service.send({ type: EventTypes.Validate, id: name });
+    },
     submit: (...ignore) => {
       service.send({ ignore, type: EventTypes.Submit });
+    },
+    setField: (name, value) => {
+      service.send({ type: EventTypes.Change, id: name as string, value });
+    },
+    set: (name, value) => {
+      service.send({ name, value: value as any, type: EventTypes.Set });
     },
     subscribe: (fn) => {
       const listener: (
@@ -192,3 +221,18 @@ export const createForm = <T, D = any, E = Error>({
     },
   };
 };
+
+// const schema = z.object({
+//   age: z.number(),
+// });
+
+// type Form = z.infer<typeof schema>;
+
+// const form = createForm<Form, string, Error>({
+//   schema,
+//   onSubmit: () => Promise.resolve(''),
+// });
+
+// form.set('errors', new Map());
+
+// form.validate('age');

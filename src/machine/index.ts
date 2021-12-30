@@ -30,9 +30,9 @@ export type Context<T, D = any, E = Error> = {
 
 export type SetType<T, D, E> =
   | { name: 'data'; value: Context<T, D, E>['data'] }
-  | { name: 'values'; value: Context<T, D, E>['values'] }
   | { name: 'error'; value: Context<T, D, E>['error'] }
-  | { name: 'errors'; value: Context<T, D, E>['errors'] }
+  | { name: 'values'; value: Required<Context<T, D, E>['values']> }
+  | { name: 'errors'; value: Required<Context<T, D, E>['errors']> }
   | { name: 'schema'; value: Required<Context<T, D, E>>['schema'] };
 
 export type States<T, D = any, E = any> =
