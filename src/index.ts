@@ -3,7 +3,9 @@ import { interpret } from 'xstate';
 import type { ActorStates, Context, Events, States } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
 
-type Handler<T> = {
+declare var __DEV__: boolean;
+
+export type Handler<T> = {
   value?: T | null;
   state: ActorStates;
   set: (value: T) => void;
@@ -21,7 +23,7 @@ export type FormState =
   | 'submitted'
   | 'error';
 
-type SubscriptionValue<T, D, E> = {
+export type SubscriptionValue<T, D, E> = {
   state: FormState;
   isIdle: boolean;
   isError: boolean;
@@ -96,7 +98,13 @@ export const createForm = <T, D = any, E = Error>({
     schema,
     values,
   }: Context<T, D, E>) => {
-    if (!schema || typeof schema === 'boolean') return;
+    if (!schema || typeof schema === 'boolean') {
+      if (__DEV__) {
+        console.warn('Cannot generate handlers without schema defined');
+      }
+
+      return;
+    }
 
     const { shape } = schema;
 
