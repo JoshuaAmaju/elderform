@@ -61,7 +61,7 @@ export type Config<T, D = any, E = Error> = {
   initialValues?: { [K in keyof T]?: T[K] };
 };
 
-const create = <T, D = any, E = Error>({
+export const createForm = <T, D = any, E = Error>({
   schema,
   onSubmit,
   initialValues,
@@ -192,5 +192,3 @@ const create = <T, D = any, E = Error>({
     },
   };
 };
-
-export default create;
