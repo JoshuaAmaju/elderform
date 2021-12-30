@@ -59,7 +59,8 @@ export type Events<T, D = any, E = any> =
     }
   | { id: keyof T; type: EventTypes.Validate }
   | { type: 'FAIL'; id: string; reason: any }
-  | { type: 'SUCCESS' | 'VALIDATING'; id: string };
+  | { type: 'SUCCESS'; id: string; value: any }
+  | { type: 'VALIDATING'; id: string };
 
 export const machine = <T, D, E>() => {
   return createMachine<Context<T, D, E>, Events<T, D, E>, States<T, D, E>>(
@@ -130,7 +131,7 @@ export const machine = <T, D, E>() => {
             },
 
             SUCCESS: {
-              actions: ['setActorSuccess', 'removeError'],
+              actions: ['setActorSuccess', 'removeError', 'setValue'],
             },
 
             [EventTypes.Change]: {
@@ -236,7 +237,12 @@ export const machine = <T, D, E>() => {
                 },
 
                 SUCCESS: {
-                  actions: ['mark', 'setActorSuccess', 'removeError'],
+                  actions: [
+                    'mark',
+                    'setActorSuccess',
+                    'removeError',
+                    'setValue',
+                  ],
                 },
               },
             },
