@@ -19,6 +19,7 @@ export enum EventTypes {
 export type Context<T, D = any, E = Error> = {
   data?: D | null;
   error?: E | null;
+  failureCount: number;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
   __ignore: Set<keyof T>;
@@ -72,6 +73,7 @@ export const machine = <T, D, E>() => {
 
       context: {
         values: {},
+        failureCount: 0,
         errors: new Map(),
         __ignore: new Set(),
         __validationMarker: new Set(),
@@ -315,9 +317,17 @@ export const machine = <T, D, E>() => {
           },
         },
 
-        submitted: {},
+        submitted: {
+          entry: assign({
+            failureCount: (_) => 0,
+          }),
+        },
 
         error: {
+          entry: assign({
+            failureCount: (ctx) => ctx.failureCount + 1,
+          }),
+
           on: {
             [EventTypes.Submit]: 'submitting',
           },
