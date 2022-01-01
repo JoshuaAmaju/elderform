@@ -1,6 +1,6 @@
 import type { Interpreter } from 'xstate';
 import { interpret } from 'xstate';
-import type { ActorStates, Context, Events, States } from '../src/machine';
+import { ActorStates, Context, Events, States } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
 
 export { retry } from './tools';
@@ -42,6 +42,7 @@ export type SubscriptionValue<T, D, E> = {
 >;
 
 type Service<T, D, E> = {
+  cancel: () => void;
   submit(...ignore: (keyof T)[]): void;
   subscribe: (
     fn: (
@@ -131,6 +132,9 @@ export const createForm = <T, D = any, E = Error>({
   return {
     __service: service,
     __generate: generate,
+    cancel: () => {
+      service.send(EventTypes.Cancel);
+    },
     submit: (...ignore) => {
       service.send({ ignore, type: EventTypes.Submit });
     },
