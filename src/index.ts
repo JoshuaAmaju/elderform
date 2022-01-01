@@ -3,6 +3,8 @@ import { interpret } from 'xstate';
 import type { ActorStates, Context, Events, States } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
 
+export { retry } from './tools';
+
 declare var __DEV__: boolean;
 
 export type Handler<T> = {
