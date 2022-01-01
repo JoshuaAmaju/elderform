@@ -6,12 +6,15 @@ type Config<TError> = {
 
 type Fn<T> = (...args: any[]) => Promise<T>;
 
-export const retry = <T, E>(fn: Fn<T>, config?: Config<E>): Promise<T> => {
+export const retry = <T, E = any>(
+  fn: Fn<T>,
+  config?: Config<E>
+): Promise<T> => {
   let count = 0;
 
   const { retries = 1, delay = 100, onRetry = () => true } = config ?? {};
 
-  let retryDelayFn = typeof delay === 'function' ? delay : () => delay;
+  let delayFn = typeof delay === 'function' ? delay : () => delay;
 
   return new Promise((resolve, reject) => {
     const run = () => {
@@ -24,7 +27,7 @@ export const retry = <T, E>(fn: Fn<T>, config?: Config<E>): Promise<T> => {
             setTimeout(() => {
               count++;
               run();
-            }, retryDelayFn(count));
+            }, delayFn(count));
           } else {
             reject(err);
           }
