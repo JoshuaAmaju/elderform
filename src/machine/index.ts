@@ -12,6 +12,7 @@ export enum EventTypes {
   Set = 'set',
   Submit = 'submit',
   Change = 'change',
+  Cancel = 'cancel',
   Validate = 'validate',
   ChangeWithValidate = 'changeWithValidate',
 }
@@ -53,6 +54,7 @@ export type States<T, D = any, E = any> =
   | { value: 'error'; context: Context<T, D, E> & { error: E } };
 
 export type Events<T, D = any, E = any> =
+  | { type: EventTypes.Cancel }
   | { type: EventTypes.Submit; ignore?: (keyof T)[] }
   | ({ type: EventTypes.Set } & SetType<T, D, E>)
   | {
@@ -286,6 +288,10 @@ export const machine = <T, D, E>() => {
         },
 
         submitting: {
+          on: {
+            [EventTypes.Cancel]: 'idle',
+          },
+
           entry: assign({
             data: (_) => null,
             error: (_) => null,
