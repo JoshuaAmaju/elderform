@@ -59,7 +59,7 @@
     "xstate": "^4.26.1",
     "zod": "^3.11.6"
   },
-  "description": "Congrats! You just saved yourself hours of work by bootstrapping this project with DTS. Let’s get you oriented with what’s here and how to use it.",
+  "description": "Form creation made easy, backed by state machines",
   "directories": {
     "test": "test"
   },
@@ -71,8 +71,7 @@
     "form",
     "validation",
     "xstate",
-    "state",
-    "machine",
+    "state machine",
     "fsm",
     "zod",
     "formik",
