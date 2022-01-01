@@ -8,6 +8,7 @@
 
 - Async validation
 - Predictable form state
+- Cancel form submission
 - Full typescript support
 - Lazy schema initialisation
 - Tiny: fully packed in just ~5kb
@@ -62,6 +63,7 @@ form.submit();
 An object which providess
 
 - `form.submit` ((...ignore?: string[]) => void) - a function to submit the form
+- `form.cancel` (() => void) - function to cancel the current form submission
 - `form.subscribe` ((stateListener) => () => void) - a state listener with the current state of the form (see below for [stateListener](#state-listener))
 - `form.__service` - the base service (xstate interpreter), made available for library authors to creating wrappers for frameworks
 - `form.validate` ((field) => void) - function to validate given field
