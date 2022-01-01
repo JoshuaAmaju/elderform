@@ -2,7 +2,7 @@ import { interpret, Interpreter } from 'xstate';
 import * as z from 'zod';
 import { Context, Events, EventTypes, machine, States } from '../src/machine';
 
-(global as any).__DEV__ = true;
+(global as any).__DEV__ = false;
 
 const schema = z.object({
   name: z.string(),
