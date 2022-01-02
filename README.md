@@ -1,12 +1,11 @@
 # Popform
 
-> Form handling without tears and predictable form state based on defined parameters
-
-### Popform gives you everything you need to create robust forms and stays out of your way, while still having a small footprint.
+> Form handling without tears and predictable form state based on defined parameters. Popform gives you everything you need to create robust forms and stays out of your way.
 
 ### Features
 
 - Async validation
+- Create reusable forms
 - Predictable form state
 - Cancel form submission
 - Full typescript support
