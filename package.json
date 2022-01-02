@@ -17,7 +17,8 @@
     "prepare": "dts build",
     "size": "size-limit",
     "start": "dts watch",
-    "test": "dts test"
+    "test": "dts test",
+    "pub": "np --any-branch"
   },
   "husky": {
     "hooks": {
@@ -82,5 +83,8 @@
   "bugs": {
     "url": "https://github.com/JoshuaAmaju/popform/issues"
   },
-  "homepage": "https://github.com/JoshuaAmaju/popform#readme"
+  "homepage": "https://github.com/JoshuaAmaju/popform#readme",
+  "publishConfig": {
+    "registry": "http://localhost:4873"
+  }
 }
