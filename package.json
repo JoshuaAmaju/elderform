@@ -34,9 +34,6 @@
   "jest": {
     "testEnvironment": "node"
   },
-  "engines": {
-    "node": ">=12"
-  },
   "size-limit": [
     {
       "path": "dist/popform.cjs.production.min.js",
