@@ -18,7 +18,7 @@
 ### Quick start
 
 ```
-pnpm add xstate popform
+pnpm add xstate sline
 ```
 
 ```ts
