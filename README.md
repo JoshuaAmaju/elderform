@@ -112,7 +112,7 @@ An `object` containing handlers for each field present in the schema
 | key                        | type                        |
 | -------------------------- | --------------------------- |
 | `state`                    | [Field State](#field-state) |
-| `error`                    | `TErrors` or `null`         |
+| `error`                    | `TErrors`                   |
 | `value`                    | `T` or `null`               |
 | `set` or `setWithValidate` | `(value: T) => void`        |
 | `validate`                 | `() => void`                |
