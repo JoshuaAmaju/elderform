@@ -1,6 +1,13 @@
 import type { Interpreter } from 'xstate';
 import { interpret } from 'xstate';
-import { Context, Events, EventTypes, machine, States } from '../src/machine';
+import {
+  Context,
+  Events,
+  EventTypes,
+  machine,
+  SetType,
+  States,
+} from '../src/machine';
 
 export * from './machine/types';
 export { object, retry } from './tools';
@@ -66,6 +73,11 @@ export type SubscriptionValue<T, D, E, Es> = {
 type Service<T, D, E, Es> = {
   cancel: () => void;
   submit(...ignore: (keyof T)[]): void;
+  set: <T extends SetType<T, D, E, Es>, P extends T['name']>(
+    name: P,
+    value: Extract<T, { name: P }>['value']
+  ) => void;
+  setField: <K extends keyof T>(name: K, value: T[K]) => void;
   subscribe: (
     fn: (
       val: SubscriptionValue<T, D, E, Es>,
@@ -162,6 +174,12 @@ export const createForm = <T, D = any, E = Error, Es = Error>({
     __generate: generate,
     cancel: () => {
       service.send(EventTypes.Cancel);
+    },
+    set: (name, value) => {
+      service.send({ type: EventTypes.Set, name, value: value as any });
+    },
+    setField: (name, value) => {
+      service.send({ type: EventTypes.Change, id: name as string, value });
     },
     submit: (...ignore) => {
       service.send({ ignore, type: EventTypes.Submit });
