@@ -9,7 +9,10 @@ describe('actor', () => {
 
   beforeEach(() => {
     service = interpret(
-      actor({ id: '1', validator: string() }).withConfig({
+      actor({
+        id: '1',
+        validator: (v) => string().parseAsync(v),
+      }).withConfig({
         actions: {
           sendFail: (_, { data }: any) => {
             error = data;
@@ -38,7 +41,7 @@ describe('actor', () => {
       }
     });
 
-    service.send({ type: 'VALIDATE', value: null });
+    service.send({ type: 'VALIDATE', value: null, values: {} });
   });
 
   it('validation should pass', (done) => {
@@ -49,15 +52,12 @@ describe('actor', () => {
       }
     });
 
-    service.send({ type: 'VALIDATE', value: 'Joe' });
+    service.send({ type: 'VALIDATE', value: 'Joe', values: {} });
   });
 
   it('validation should pass and resolve with new value', (done) => {
     const service = interpret(
-      actor({
-        id: '1',
-        validator: string().transform(() => 'Jane'),
-      }).withConfig({
+      actor({ id: '1', validator: () => 'Jane' }).withConfig({
         actions: {
           sendSuccess: (_, { data }: any) => {
             expect(data).toBe('Jane');
@@ -72,6 +72,6 @@ describe('actor', () => {
       }
     });
 
-    service.send({ type: 'VALIDATE', value: 'Joe' });
+    service.send({ type: 'VALIDATE', value: 'Joe', values: {} });
   });
 });
