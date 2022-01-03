@@ -18,6 +18,7 @@ describe('actor', () => {
             error = data;
           },
           sendSuccess: () => {},
+          sendValidating: () => {},
         },
       })
     ).start();
