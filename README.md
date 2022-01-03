@@ -53,7 +53,7 @@ form.submit();
 
 ### Config:
 
-- `schema?` (boolean | object) - a zod object containing functions or `false` to disable schema validation
+- `schema?` (boolean | object) - object containing functions or `false` to disable schema validation
 - `initialValues?` (object) - initial form values
 - `onSubmit(values: object)` - an async function that handles form submission
 
