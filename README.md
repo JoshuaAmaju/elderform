@@ -18,16 +18,16 @@
 ### Quick start
 
 ```
-pnpm add xstate zod popform
+pnpm add xstate popform
 ```
 
 ```ts
 import * as z from 'zod';
-import {createForm} from 'popform';
+import {createForm, object} from 'popform';
 
 const form = createForm({
-  schema: z.object({
-    name: z.string(),
+  schema: object({
+    name: val => z.string().parse(val),
   }),
   onSubmit: () => {
     return Promise.resolve();
@@ -53,7 +53,7 @@ form.submit();
 
 ### Config:
 
-- `schema?` (boolean | object) - a zod object (see [here](https://www.npmjs.com/package/zod) for documentation) or `false` to disable schema validation
+- `schema?` (boolean | object) - object containing functions or `false` to disable schema validation
 - `initialValues?` (object) - initial form values
 - `onSubmit(values: object)` - an async function that handles form submission
 
@@ -99,7 +99,7 @@ An object which providess
   - `error` (TError | null)
     - Defaults to `undefined`
     - The error object last from submission, if an error was thrown
-  - `errors` (Map<string, string>) - a map containing errors for each field after validation
+  - `errors` (Map<string, TErrors>) - a map containing errors for each field after validation
   - `dataUpdatedAt` (number) -
     The timestamp for when the form most recently submitted successfully and returned data (Defaults to `0`)
   - `errorUpdatedAt` (number) -
@@ -112,6 +112,7 @@ An `object` containing handlers for each field present in the schema
 | key                        | type                        |
 | -------------------------- | --------------------------- |
 | `state`                    | [Field State](#field-state) |
+| `error`                    | `TErrors`                   |
 | `value`                    | `T` or `null`               |
 | `set` or `setWithValidate` | `(value: T) => void`        |
 | `validate`                 | `() => void`                |
