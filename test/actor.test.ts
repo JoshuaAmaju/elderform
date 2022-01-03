@@ -60,6 +60,7 @@ describe('actor', () => {
     const service = interpret(
       actor({ id: '1', validator: () => 'Jane' }).withConfig({
         actions: {
+          sendValidating: () => {},
           sendSuccess: (_, { data }: any) => {
             expect(data).toBe('Jane');
           },
