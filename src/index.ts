@@ -7,15 +7,16 @@ export { retry, object } from './tools';
 
 declare var __DEV__: boolean;
 
-export type Handler<T> = {
+export type Handler<T, E> = {
   value?: T | null;
+  error?: E | null;
   state: ActorStates;
   set: (value: T) => void;
   setWithValidate: (value: T) => void;
 };
 
-type Generate<T, D, E> = (ctx: Context<T, D, E>) => {
-  [K in keyof T]: Handler<T[K]>;
+type Generate<T, D, E, Es> = (ctx: Context<T, D, E, Es>) => {
+  [K in keyof T]: Handler<T[K], Es>;
 };
 
 export type FormState =
@@ -47,10 +48,10 @@ type Service<T, D, E, Es> = {
   subscribe: (
     fn: (
       val: SubscriptionValue<T, D, E, Es>,
-      handlers: { [K in keyof T]: Handler<T[K]> }
+      handlers: { [K in keyof T]: Handler<T[K], Es> }
     ) => void
   ) => () => void;
-  __generate: Generate<T, D, E>;
+  __generate: Generate<T, D, E, Es>;
   __service: Interpreter<
     Context<T, D, E, Es>,
     any,
@@ -91,11 +92,12 @@ export const createForm = <T, D = any, E = Error, Es = Error>({
       })
   ).start();
 
-  const generate: Generate<T, D, E> = ({
+  const generate: Generate<T, D, E, Es> = ({
     states,
     schema,
     values,
-  }: Context<T, D, E>) => {
+    errors,
+  }: Context<T, D, E, Es>) => {
     if (!schema || typeof schema === 'boolean') {
       if (__DEV__) {
         console.warn('Cannot generate handlers without schema defined');
@@ -110,10 +112,12 @@ export const createForm = <T, D = any, E = Error, Es = Error>({
       const _id = id as keyof T;
       const state = states[_id];
       const value = values[_id];
+      const error = errors.get(_id);
 
-      const handler: Handler<T[typeof _id]> = {
+      const handler: Handler<T[typeof _id], Es> = {
         state,
         value,
+        error,
         set: (value) => {
           service.send({ id, value, type: EventTypes.Change });
         },
