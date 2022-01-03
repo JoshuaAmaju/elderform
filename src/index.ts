@@ -3,7 +3,7 @@ import { interpret } from 'xstate';
 import { ActorStates, Context, Events, States } from '../src/machine';
 import { EventTypes, machine } from '../src/machine';
 
-export { retry } from './tools';
+export { retry, object } from './tools';
 
 declare var __DEV__: boolean;
 
