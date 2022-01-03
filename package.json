@@ -1,10 +1,10 @@
 {
-  "name": "popform",
-  "version": "0.1.0",
+  "name": "flowform",
+  "version": "0.1.1",
   "license": "MIT",
   "author": "Joshua Amaju",
   "main": "dist/index.js",
-  "module": "dist/popform.esm.js",
+  "module": "dist/flowform.esm.js",
   "typings": "dist/index.d.ts",
   "files": [
     "dist",
@@ -17,7 +17,8 @@
     "prepare": "dts build",
     "size": "size-limit",
     "start": "dts watch",
-    "test": "dts test"
+    "test": "dts test",
+    "pub": "np"
   },
   "husky": {
     "hooks": {
@@ -33,16 +34,13 @@
   "jest": {
     "testEnvironment": "node"
   },
-  "engines": {
-    "node": ">=12"
-  },
   "size-limit": [
     {
-      "path": "dist/popform.cjs.production.min.js",
+      "path": "dist/flowform.cjs.production.min.js",
       "limit": "10 KB"
     },
     {
-      "path": "dist/popform.esm.js",
+      "path": "dist/flowform.esm.js",
       "limit": "10 KB"
     }
   ],
@@ -80,7 +78,10 @@
     "state"
   ],
   "bugs": {
-    "url": "https://github.com/JoshuaAmaju/popform/issues"
+    "url": "https://github.com/JoshuaAmaju/flowform/issues"
   },
-  "homepage": "https://github.com/JoshuaAmaju/popform#readme"
+  "homepage": "https://github.com/JoshuaAmaju/flowform#readme",
+  "publishConfig": {
+    "registry": "http://localhost:4873"
+  }
 }
