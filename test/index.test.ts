@@ -1,14 +1,16 @@
 import { interpret, Interpreter } from 'xstate';
 import * as z from 'zod';
 import { Context, Events, EventTypes, machine, States } from '../src/machine';
+import { TypeOf } from '../src/machine/types';
+import { object } from '../src/tools';
 
 (global as any).__DEV__ = false;
 
-const schema = z.object({
-  name: z.string(),
+const schema = object({
+  name: (v: any) => z.string().parseAsync(v),
 });
 
-type Form = z.infer<typeof schema>;
+type Form = TypeOf<typeof schema>;
 
 let service: Interpreter<
   Context<Form, any, any>,
@@ -21,8 +23,7 @@ const submit = () => Promise.resolve({});
 
 describe('machine', () => {
   beforeEach(() => {
-    const def = machine<Form, any, any>();
-
+    const def = machine<Form, any, any, any>();
     service = interpret(def).start();
   });
 
@@ -37,7 +38,7 @@ describe('machine', () => {
   });
 
   it('should initialise to idle state', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def.withContext({ ...def.context, schema })
@@ -62,7 +63,7 @@ describe('machine', () => {
   });
 
   it('should have default values', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def.withContext({ ...def.context, schema, values: { name: 'Joe' } })
@@ -78,7 +79,7 @@ describe('machine', () => {
 
 describe('field validation', () => {
   beforeEach(() => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     service = interpret(def.withContext({ ...def.context, schema })).start();
   });
@@ -116,7 +117,7 @@ describe('field validation', () => {
 
 describe('submission', () => {
   it('should submit without error', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def
@@ -137,7 +138,7 @@ describe('submission', () => {
   });
 
   it('should submit with error', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def
@@ -159,7 +160,7 @@ describe('submission', () => {
   });
 
   it('should not submit due to validation error', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def.withContext({ ...def.context, schema })
@@ -176,7 +177,7 @@ describe('submission', () => {
   });
 
   it('should bailout on submission if any field has error', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def.withContext({ ...def.context, schema }).withConfig({
@@ -192,7 +193,7 @@ describe('submission', () => {
   });
 
   it('should ignore specified fields', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def.withContext({ ...def.context, schema }).withConfig({
@@ -209,14 +210,14 @@ describe('submission', () => {
   });
 
   it('should skip verification given we are skipping all fields', (done) => {
-    const schema = z.object({
-      age: z.number(),
-      name: z.string(),
+    const schema = object({
+      age: (v: any) => z.number().parse(v),
+      name: (v: any) => z.string().parse(v),
     });
 
-    type Form = z.infer<typeof schema>;
+    type Form = TypeOf<typeof schema>;
 
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     let service = interpret(
       def.withContext({ ...def.context, schema })
@@ -234,7 +235,7 @@ describe('submission', () => {
 
 describe('setting values', () => {
   beforeEach(() => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
     service = interpret(def).start();
   });
 
@@ -243,14 +244,14 @@ describe('setting values', () => {
   });
 
   it('should set values', (done) => {
-    const schema = z.object({
-      age: z.number(),
-      name: z.string(),
+    const schema = object({
+      age: (v: any) => z.number().parseAsync(v),
+      name: (v: any) => z.string().parseAsync(v),
     });
 
-    type Form = z.infer<typeof schema>;
+    type Form = TypeOf<typeof schema>;
 
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     let value = { age: 20, name: 'John' };
 
@@ -302,7 +303,7 @@ describe('setting values', () => {
   });
 
   it('should not unset schema', (done) => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     const service = interpret(
       def.withContext({ ...def.context, schema })
@@ -324,7 +325,7 @@ describe('setting values', () => {
 
 describe('disable schema', () => {
   beforeEach(() => {
-    const def = machine<Form, any, any>();
+    const def = machine<Form, any, any, any>();
 
     service = interpret(
       def.withContext({ ...def.context, schema: false }).withConfig({

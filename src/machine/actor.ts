@@ -1,27 +1,26 @@
 import { assign, createMachine, sendParent } from 'xstate';
-import { ZodError } from 'zod';
-import type { ZodTypeAny } from 'zod';
+import { Validator } from './types';
 
-export type Context = { value?: any };
+export type Context = { value: any; values: any };
 
 export type States = { context: Context; value: 'idle' | 'validating' };
 
 export type Events =
   | { id: string; type: 'FAIL' | 'SUCCESS' }
-  | { type: 'VALIDATE'; value: any };
+  | { type: 'VALIDATE'; value: any; values: any };
 
 export const actor = ({
   id,
   validator,
 }: {
   id: string;
-  validator: ZodTypeAny;
+  validator: Validator;
 }) => {
   return createMachine<Context, Events, States>(
     {
       initial: 'idle',
 
-      context: {},
+      context: {} as any,
 
       states: {
         idle: {
@@ -60,6 +59,7 @@ export const actor = ({
       actions: {
         setValue: assign({
           value: (_, { value }: any) => value,
+          values: (_, { values }: any) => values,
         }),
 
         sendFail: sendParent((_, { data }: any) => {
@@ -72,16 +72,9 @@ export const actor = ({
       },
 
       services: {
-        validate: async ({ value }) => {
-          try {
-            return await validator.parseAsync(value);
-          } catch (e) {
-            let err = (e as Error)?.message;
-
-            if (e instanceof ZodError) err = e.issues[0].message;
-
-            throw err;
-          }
+        validate: async ({ value, values }) => {
+          const res = validator(value, values);
+          return res instanceof Promise ? await res : res;
         },
       },
     }
