@@ -33,7 +33,7 @@ export const actor = ({
         },
 
         validating: {
-          entry: sendParent(() => ({ id, type: 'VALIDATING' })),
+          entry: 'sendValidating',
 
           on: {
             VALIDATE: {
@@ -71,6 +71,8 @@ export const actor = ({
         sendSuccess: sendParent((_, { data }: any) => {
           return { id, value: data, type: 'SUCCESS' };
         }),
+
+        sendValidating: sendParent(() => ({ id, type: 'VALIDATING' })),
       },
 
       services: {
