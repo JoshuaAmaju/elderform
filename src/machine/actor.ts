@@ -33,6 +33,8 @@ export const actor = ({
         },
 
         validating: {
+          entry: sendParent(() => ({ id, type: 'VALIDATING' })),
+
           on: {
             VALIDATE: {
               internal: false,
