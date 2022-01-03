@@ -1,19 +1,40 @@
 import type { Interpreter } from 'xstate';
 import { interpret } from 'xstate';
-import { ActorStates, Context, Events, States } from '../src/machine';
-import { EventTypes, machine } from '../src/machine';
+import { Context, Events, EventTypes, machine, States } from '../src/machine';
 
-export { retry, object } from './tools';
+export * from './machine/types';
+export { object, retry } from './tools';
 
 declare var __DEV__: boolean;
 
-export type Handler<T, E> = {
-  value?: T | null;
-  error?: E | null;
-  state: ActorStates;
+type HandleActions<T> = {
   set: (value: T) => void;
   setWithValidate: (value: T) => void;
 };
+
+export type Handler<T, E> = (
+  | {
+      error: E;
+      state: 'failed';
+      value?: T | null;
+    }
+  | {
+      value: T;
+      error?: E | null;
+      state: 'success';
+    }
+  | {
+      state: 'idle';
+      value?: T | null;
+      error?: E | null;
+    }
+  | {
+      error?: null;
+      value?: T | null;
+      state: 'validating';
+    }
+) &
+  HandleActions<T>;
 
 type Generate<T, D, E, Es> = (ctx: Context<T, D, E, Es>) => {
   [K in keyof T]: Handler<T[K], Es>;
@@ -110,7 +131,7 @@ export const createForm = <T, D = any, E = Error, Es = Error>({
 
     const entries = Object.keys(shape).map((id) => {
       const _id = id as keyof T;
-      const state = states[_id];
+      const state = states[_id] as any;
       const value = values[_id];
       const error = errors.get(_id);
 
