@@ -77,7 +77,9 @@ type Service<T, D, E, Es> = {
     name: P,
     value: Extract<T, { name: P }>['value']
   ) => void;
+  validate: (name: keyof T) => void;
   setField: <K extends keyof T>(name: K, value: T[K]) => void;
+  setFieldWithValidate: <K extends keyof T>(name: K, value: T[K]) => void;
   subscribe: (
     fn: (
       val: SubscriptionValue<T, D, E, Es>,
@@ -173,11 +175,21 @@ export const createForm = <T, D = any, E = Error, Es = Error>({
     cancel: () => {
       service.send(EventTypes.Cancel);
     },
+    validate: (name) => {
+      service.send({ id: name, type: EventTypes.Validate });
+    },
     set: (name, value) => {
       service.send({ type: EventTypes.Set, name, value: value as any });
     },
     setField: (name, value) => {
       service.send({ type: EventTypes.Change, id: name as string, value });
+    },
+    setFieldWithValidate: (name, value) => {
+      service.send({
+        id: name as string,
+        value,
+        type: EventTypes.ChangeWithValidate,
+      });
     },
     submit: (...ignore) => {
       service.send({ ignore, type: EventTypes.Submit });
