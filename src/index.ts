@@ -25,7 +25,7 @@ export type FormState =
   | 'submitted'
   | 'error';
 
-export type SubscriptionValue<T, D, E> = {
+export type SubscriptionValue<T, D, E, Es> = {
   state: FormState;
   isIdle: boolean;
   isError: boolean;
@@ -37,40 +37,40 @@ export type SubscriptionValue<T, D, E> = {
   validatedWithErrors?: boolean;
   submittedWithoutError?: boolean;
 } & Omit<
-  Context<T, D, E>,
+  Context<T, D, E, Es>,
   '__ignore' | '__validationMarker' | 'actors' | 'schema'
 >;
 
-type Service<T, D, E> = {
+type Service<T, D, E, Es> = {
   cancel: () => void;
   submit(...ignore: (keyof T)[]): void;
   subscribe: (
     fn: (
-      val: SubscriptionValue<T, D, E>,
+      val: SubscriptionValue<T, D, E, Es>,
       handlers: { [K in keyof T]: Handler<T[K]> }
     ) => void
   ) => () => void;
   __generate: Generate<T, D, E>;
   __service: Interpreter<
-    Context<T, D, E>,
+    Context<T, D, E, Es>,
     any,
-    Events<T, D, E>,
+    Events<T, D, E, Es>,
     States<T, D, E>
   >;
 };
 
-export type Config<T, D = any, E = Error> = {
-  onSubmit: (value: T) => Promise<D>;
-  schema?: Context<T, D, E>['schema'];
+export type Config<T, D = any, E = Error, Es = Error> = {
+  onSubmit: (value: T) => D | Promise<D>;
+  schema?: Context<T, D, E, Es>['schema'];
   initialValues?: { [K in keyof T]?: T[K] };
 };
 
-export const createForm = <T, D = any, E = Error>({
+export const createForm = <T, D = any, E = Error, Es = Error>({
   schema,
   onSubmit,
   initialValues,
-}: Config<T, D, E>): Service<T, D, E> => {
-  const def = machine<T, D, E>();
+}: Config<T, D, E, Es>): Service<T, D, E, Es> => {
+  const def = machine<T, D, E, Es>();
 
   const service = interpret(
     def
@@ -83,7 +83,10 @@ export const createForm = <T, D = any, E = Error>({
       })
       .withConfig({
         services: {
-          submit: ({ values }) => onSubmit(values as T),
+          submit: async ({ values }) => {
+            const res = onSubmit(values as T);
+            return res instanceof Promise ? await res : res;
+          },
         },
       })
   ).start();
