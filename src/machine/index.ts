@@ -183,18 +183,22 @@ export const machine = <T, D, E, Es>() => {
 
             [EventTypes.Validate]: {
               cond: 'hasSchema',
-              actions: send(
-                ({ values }, { id }) => {
-                  return { values, value: values[id], type: 'VALIDATE' };
-                },
-                { to: (_, { id }) => id as string }
-              ),
+              actions: [
+                'removeError',
+                send(
+                  ({ values }, { id }) => {
+                    return { values, value: values[id], type: 'VALIDATE' };
+                  },
+                  { to: (_, { id }) => id as string }
+                ),
+              ],
             },
 
             [EventTypes.ChangeWithValidate]: {
               cond: 'hasSchema',
               actions: [
                 'setValue',
+                'removeError',
                 send(
                   ({ values }, { value }) => ({
                     value,
