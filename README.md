@@ -1,6 +1,6 @@
-# Popform
+# Elderform
 
-> Form handling without tears and predictable form state based on defined parameters. Popform gives you everything you need to create robust forms and stays out of your way.
+> Form handling without tears and predictable form state based on defined parameters. Elderform gives you everything you need to create robust forms and stays out of your way.
 
 ### Features
 
@@ -18,12 +18,12 @@
 ### Quick start
 
 ```
-pnpm add xstate sline
+pnpm add xstate elderform
 ```
 
 ```ts
 import * as z from 'zod';
-import {createForm, object} from 'sline';
+import {createForm, object} from 'elderform';
 
 const form = createForm({
   schema: object({

@@ -1,10 +1,10 @@
 {
-  "name": "sline",
+  "name": "elderform",
   "version": "0.0.0",
   "license": "MIT",
   "author": "Joshua Amaju",
   "main": "dist/index.js",
-  "module": "dist/sline.esm.js",
+  "module": "dist/elderform.esm.js",
   "typings": "dist/index.d.ts",
   "files": [
     "dist",
@@ -37,11 +37,11 @@
   },
   "size-limit": [
     {
-      "path": "dist/sline.cjs.production.min.js",
+      "path": "dist/elderform.cjs.production.min.js",
       "limit": "10 KB"
     },
     {
-      "path": "dist/sline.esm.js",
+      "path": "dist/elderform.esm.js",
       "limit": "10 KB"
     }
   ],
@@ -64,7 +64,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JoshuaAmaju/sline.git"
+    "url": "git+https://github.com/JoshuaAmaju/elderform.git"
   },
   "keywords": [
     "form",
@@ -78,7 +78,7 @@
     "state"
   ],
   "bugs": {
-    "url": "https://github.com/JoshuaAmaju/sline/issues"
+    "url": "https://github.com/JoshuaAmaju/elderform/issues"
   },
-  "homepage": "https://github.com/JoshuaAmaju/sline#readme"
+  "homepage": "https://github.com/JoshuaAmaju/elderform#readme"
 }
