@@ -18,7 +18,7 @@
 ### Quick start
 
 ```
-pnpm add xstate zod popform
+pnpm add xstate popform
 ```
 
 ```ts
