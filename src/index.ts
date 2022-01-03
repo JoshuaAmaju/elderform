@@ -139,9 +139,7 @@ export const createForm = <T, D = any, E = Error, Es = Error>({
       return;
     }
 
-    const { shape } = schema;
-
-    const entries = Object.keys(shape).map((id) => {
+    const entries = Object.keys(schema).map((id) => {
       const _id = id as keyof T;
       const state = states[_id] as any;
       const value = values[_id];
