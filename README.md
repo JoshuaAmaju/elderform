@@ -23,7 +23,7 @@ pnpm add xstate sline
 
 ```ts
 import * as z from 'zod';
-import {createForm, object} from 'popform';
+import {createForm, object} from 'sline';
 
 const form = createForm({
   schema: object({
