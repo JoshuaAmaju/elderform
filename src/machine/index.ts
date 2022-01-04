@@ -66,6 +66,35 @@ export type Events<T, D = any, E = any, Es = any> =
   | { type: 'SUCCESS'; id: string; value: any }
   | { type: 'VALIDATING'; id: string };
 
+const onChangeActions = [
+  'setValue',
+  'removeError',
+  choose([
+    {
+      actions: 'setActorIdle',
+      cond: ({ states }: any, { id }: any) => {
+        return states[id] !== 'validating';
+      },
+    },
+  ]),
+] as any;
+
+const onChangeWithValidateActions = [
+  'setValue',
+  'removeError',
+  'setActorIdle',
+  send(
+    ({ values }: any, { value }: any) => ({
+      value,
+      values,
+      type: 'VALIDATE',
+    }),
+    {
+      to: (_, { id }) => id,
+    }
+  ),
+] as any;
+
 export const machine = <T, D, E, Es>() => {
   return createMachine<
     Context<T, D, E, Es>,
@@ -98,7 +127,13 @@ export const machine = <T, D, E, Es>() => {
         // enter idle state if change is sent while in another state
         [EventTypes.Change]: {
           target: 'idle',
-          actions: 'setValue',
+          actions: onChangeActions,
+        },
+
+        [EventTypes.Validate]: {
+          target: 'idle',
+          cond: 'hasSchema',
+          actions: onChangeWithValidateActions,
         },
 
         [EventTypes.Set]: [
@@ -157,18 +192,7 @@ export const machine = <T, D, E, Es>() => {
             },
 
             [EventTypes.Change]: {
-              actions: [
-                'setValue',
-                'removeError',
-                choose([
-                  {
-                    actions: 'setActorIdle',
-                    cond: ({ states }, { id }) => {
-                      return states[id] !== 'validating';
-                    },
-                  },
-                ]),
-              ],
+              actions: onChangeActions,
             },
 
             [EventTypes.Submit]: [
@@ -194,35 +218,12 @@ export const machine = <T, D, E, Es>() => {
 
             [EventTypes.Validate]: {
               cond: 'hasSchema',
-              actions: [
-                'removeError',
-                'setActorIdle',
-                send(
-                  ({ values }, { id }) => {
-                    return { values, value: values[id], type: 'VALIDATE' };
-                  },
-                  { to: (_, { id }) => id as string }
-                ),
-              ],
+              actions: onChangeWithValidateActions,
             },
 
             [EventTypes.ChangeWithValidate]: {
               cond: 'hasSchema',
-              actions: [
-                'setValue',
-                'removeError',
-                'setActorIdle',
-                send(
-                  ({ values }, { value }) => ({
-                    value,
-                    values,
-                    type: 'VALIDATE',
-                  }),
-                  {
-                    to: (_, { id }) => id,
-                  }
-                ),
-              ],
+              actions: onChangeWithValidateActions,
             },
           },
         },
@@ -403,8 +404,7 @@ export const machine = <T, D, E, Es>() => {
 
         setError: assign({
           errors: ({ errors }, { id, reason }: any) => {
-            errors.set(id, reason);
-            return errors;
+            return errors.set(id, reason);
           },
         }),
 
@@ -417,8 +417,7 @@ export const machine = <T, D, E, Es>() => {
 
         mark: assign({
           __validationMarker: ({ __validationMarker }, { id }: any) => {
-            __validationMarker.add(id);
-            return __validationMarker;
+            return __validationMarker.add(id);
           },
         }),
 
