@@ -404,8 +404,7 @@ export const machine = <T, D, E, Es>() => {
 
         setError: assign({
           errors: ({ errors }, { id, reason }: any) => {
-            errors.set(id, reason);
-            return errors;
+            return errors.set(id, reason);
           },
         }),
 
@@ -418,8 +417,7 @@ export const machine = <T, D, E, Es>() => {
 
         mark: assign({
           __validationMarker: ({ __validationMarker }, { id }: any) => {
-            __validationMarker.add(id);
-            return __validationMarker;
+            return __validationMarker.add(id);
           },
         }),
 
