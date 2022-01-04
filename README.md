@@ -2,6 +2,8 @@
 
 > Form handling without tears and predictable form state based on defined parameters. Elderform gives you everything you need to create robust forms and stays out of your way.
 
+![npm bundle size](https://img.shields.io/bundlephobia/minzip/elderform) ![npm](https://img.shields.io/npm/v/elderform) ![npm](https://img.shields.io/npm/dt/elderform)
+
 ### Features
 
 - Async validation
