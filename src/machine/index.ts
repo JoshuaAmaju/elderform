@@ -157,7 +157,18 @@ export const machine = <T, D, E, Es>() => {
             },
 
             [EventTypes.Change]: {
-              actions: 'setValue',
+              actions: [
+                'setValue',
+                'removeError',
+                choose([
+                  {
+                    actions: 'setActorIdle',
+                    cond: ({ states }, { id }) => {
+                      return states[id] !== 'validating';
+                    },
+                  },
+                ]),
+              ],
             },
 
             [EventTypes.Submit]: [
@@ -185,6 +196,7 @@ export const machine = <T, D, E, Es>() => {
               cond: 'hasSchema',
               actions: [
                 'removeError',
+                'setActorIdle',
                 send(
                   ({ values }, { id }) => {
                     return { values, value: values[id], type: 'VALIDATE' };
@@ -199,6 +211,7 @@ export const machine = <T, D, E, Es>() => {
               actions: [
                 'setValue',
                 'removeError',
+                'setActorIdle',
                 send(
                   ({ values }, { value }) => ({
                     value,
