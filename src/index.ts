@@ -12,9 +12,6 @@ import {
 export * from './machine/types';
 export { object, retry } from './tools';
 
-import { object } from './tools';
-import * as z from 'zod';
-
 declare var __DEV__: boolean;
 
 type HandleActions<T> = {
@@ -98,13 +95,13 @@ type Service<T, D, E, Es> = {
   >;
 };
 
-export type Config<T, D = any, E = Error, Es = Error> = {
+export type Config<T, D, E, Es> = {
   onSubmit: (value: T) => D | Promise<D>;
   schema?: Context<T, D, E, Es>['schema'];
   initialValues?: { [K in keyof T]?: T[K] };
 };
 
-export const createForm = <T, D = any, E = Error, Es = Error, TData = D>({
+export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
   schema,
   onSubmit,
   initialValues,
@@ -247,14 +244,3 @@ export const createForm = <T, D = any, E = Error, Es = Error, TData = D>({
     },
   };
 };
-
-const schema = object({
-  name: (v: string) => z.string().parse(v),
-});
-
-const form = createForm({
-  schema,
-  onSubmit: async () => 1,
-});
-
-form.subscribe(({ data, values }) => {});

@@ -24,7 +24,7 @@ export type Context<T, D = any, E = Error, Es = any> = {
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
   errors: Map<keyof T, Es>;
-  schema?: Schema<any> | boolean;
+  schema?: Schema<T> | boolean;
   __validationMarker: Set<string>;
   actors: { [K: string]: ActorRef<any> };
   states: { [K in keyof T]: ActorStates };
