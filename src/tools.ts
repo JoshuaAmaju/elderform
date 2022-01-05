@@ -2,8 +2,8 @@ import { Schema } from './machine/types';
 
 type Config<TError> = {
   retries?: number;
-  onRetry?: (error: TError) => boolean;
   delay?: number | ((n: number) => number);
+  onRetry?: (error: TError, attempts: number) => boolean;
 };
 
 type Fn<T> = (...args: any[]) => Promise<T>;
@@ -23,7 +23,7 @@ export const retry = <T, E = any>(
       fn()
         .then(resolve)
         .catch((err) => {
-          const tryAgain = onRetry(err);
+          const tryAgain = onRetry(err, count);
 
           if (count < retries && tryAgain) {
             setTimeout(() => {
