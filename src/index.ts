@@ -43,9 +43,11 @@ export type Handler<T, E> = (
 ) &
   HandleActions<T>;
 
-type Generate<T, D, E, Es> = (ctx: Context<T, D, E, Es>) => {
+export type Handlers<T, Es> = {
   [K in keyof T]: Handler<T[K], Es>;
 };
+
+type Generate<T, D, E, Es> = (ctx: Context<T, D, E, Es>) => Handlers<T, Es>;
 
 export type FormState =
   | 'idle'
@@ -70,7 +72,7 @@ export type SubscriptionValue<T, D, E, Es> = {
   '__ignore' | '__validationMarker' | 'actors' | 'schema'
 >;
 
-type Service<T, D, E, Es> = {
+export type Service<T, D, E, Es> = {
   cancel: () => void;
   submit(...ignore: (keyof T)[]): void;
   set: <T extends SetType<T, D, E, Es>, P extends T['name']>(
