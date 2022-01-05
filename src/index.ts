@@ -12,7 +12,12 @@ import {
 export * from './machine/types';
 export { object, retry } from './tools';
 
-export type { Context, States, Events, EventTypes };
+export { EventTypes };
+
+export type { Context, States, Events };
+
+import { object } from './tools';
+import * as z from 'zod';
 
 declare var __DEV__: boolean;
 
@@ -248,3 +253,14 @@ export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
     },
   };
 };
+
+const schema = object({
+  name: (v: any) => z.string().parse(v),
+});
+
+const form = createForm({
+  schema,
+  onSubmit: () => '',
+});
+
+form.subscribe(({ values }) => {});
