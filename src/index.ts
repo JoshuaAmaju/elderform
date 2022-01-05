@@ -63,7 +63,10 @@ export type FormState =
   | 'submitted'
   | 'error';
 
-export type SubscriptionValue<T, D, E, Es> = {
+export type SubscriptionValue<T, D, E, Es> = Omit<
+  Context<T, D, E, Es>,
+  '__ignore' | 'actors' | 'schema' | '__validationMarker'
+> & {
   state: FormState;
   isIdle: boolean;
   isError: boolean;
@@ -74,10 +77,7 @@ export type SubscriptionValue<T, D, E, Es> = {
   submittedWithError?: boolean;
   validatedWithErrors?: boolean;
   submittedWithoutError?: boolean;
-} & Omit<
-  Context<T, D, E, Es>,
-  '__ignore' | '__validationMarker' | 'actors' | 'schema'
->;
+};
 
 export type Service<T, D, E, Es> = {
   cancel: () => void;
