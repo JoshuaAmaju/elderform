@@ -43,14 +43,11 @@ describe('autoretry async function', () => {
   });
 
   it('abort after being called 2 times', (done) => {
-    let attempts = 0;
-
     retry(mayFail, {
       delay: 1,
       retries: 10,
-      onRetry: (e) => {
-        ++attempts;
-        return e instanceof NotFound && attempts < 2;
+      onRetry: (e, attempts) => {
+        return e instanceof NotFound && attempts < 1;
       },
     }).catch(() => {
       expect(mayFail.mock.calls.length).toBe(2);
