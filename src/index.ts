@@ -12,6 +12,8 @@ import {
 export * from './machine/types';
 export { object, retry } from './tools';
 
+export type { Context, States, Events, EventTypes };
+
 declare var __DEV__: boolean;
 
 type HandleActions<T> = {
