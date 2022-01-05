@@ -19,6 +19,7 @@ export { EventTypes };
 declare var __DEV__: boolean;
 
 type HandleActions<T> = {
+  validate: () => void;
   set: (value: T) => void;
   setWithValidate: (value: T) => void;
 };
@@ -147,16 +148,19 @@ export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
       return;
     }
 
-    const entries = Object.keys(schema).map((id) => {
-      const _id = id as keyof T;
-      const state = states[_id] as any;
-      const value = values[_id];
-      const error = errors.get(_id);
+    const entries = Object.keys(schema).map((k) => {
+      const id = k as keyof T;
+      const value = values[id];
+      const error = errors.get(id);
+      const state = states[id] as any;
 
-      const handler: Handler<T[typeof _id], Es> = {
+      const handler: Handler<T[typeof id], Es> = {
         state,
         value,
         error,
+        validate: () => {
+          service.send({ id, type: EventTypes.Validate });
+        },
         set: (value) => {
           service.send({ id, value, type: EventTypes.Change });
         },
@@ -169,7 +173,7 @@ export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
         },
       };
 
-      return [id, handler];
+      return [k, handler];
     });
 
     return Object.fromEntries(entries);
@@ -181,18 +185,18 @@ export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
     cancel: () => {
       service.send(EventTypes.Cancel);
     },
-    validate: (name) => {
-      service.send({ id: name, type: EventTypes.Validate });
+    validate: (id) => {
+      service.send({ id, type: EventTypes.Validate });
     },
     set: (name, value) => {
       service.send({ type: EventTypes.Set, name, value: value as any });
     },
-    setField: (name, value) => {
-      service.send({ type: EventTypes.Change, id: name as string, value });
+    setField: (id, value) => {
+      service.send({ type: EventTypes.Change, id, value });
     },
-    setFieldWithValidate: (name, value) => {
+    setFieldWithValidate: (id, value) => {
       service.send({
-        id: name as string,
+        id,
         value,
         type: EventTypes.ChangeWithValidate,
       });

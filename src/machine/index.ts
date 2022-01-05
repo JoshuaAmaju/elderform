@@ -57,8 +57,8 @@ export type Events<T, D = any, E = any, Es = any> =
   | { type: EventTypes.Submit; ignore?: (keyof T)[] }
   | ({ type: EventTypes.Set } & SetType<T, D, E, Es>)
   | {
-      id: string;
       value: any;
+      id: keyof T;
       type: EventTypes.Change | EventTypes.ChangeWithValidate;
     }
   | { id: keyof T; type: EventTypes.Validate }
