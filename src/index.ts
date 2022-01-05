@@ -7,12 +7,14 @@ import {
   machine,
   SetType,
   States,
-} from '../src/machine';
+} from './machine';
 
 export * from './machine/types';
 export { object, retry } from './tools';
 
-export { Context, States, Events, EventTypes };
+export type { Context, States, Events };
+
+export { EventTypes };
 
 declare var __DEV__: boolean;
 

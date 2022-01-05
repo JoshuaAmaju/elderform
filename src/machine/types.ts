@@ -5,7 +5,7 @@ export type Validator<SchemaType = any, T = any> = (
   values: SchemaType
 ) => T | Promise<T>;
 
-export type TypeOf<T> = T extends Schema<infer R>
+export type Infer<T> = T extends Schema<infer R>
   ? {
       [K in keyof R]: R[K] extends Validator<R, R[K]>
         ? ReturnType<R[K]> extends Promise<infer N>

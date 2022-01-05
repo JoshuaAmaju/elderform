@@ -1,7 +1,7 @@
 import { interpret, Interpreter } from 'xstate';
 import * as z from 'zod';
 import { Context, Events, EventTypes, machine, States } from '../src/machine';
-import { TypeOf } from '../src/machine/types';
+import { Infer } from '../src/machine/types';
 import { object } from '../src/tools';
 
 (global as any).__DEV__ = false;
@@ -10,7 +10,7 @@ const schema = object({
   name: (v: any) => z.string().parseAsync(v),
 });
 
-type Form = TypeOf<typeof schema>;
+type Form = Infer<typeof schema>;
 
 let service: Interpreter<
   Context<Form, any, any>,
@@ -215,7 +215,7 @@ describe('submission', () => {
       name: (v: any) => z.string().parse(v),
     });
 
-    type Form = TypeOf<typeof schema>;
+    type Form = Infer<typeof schema>;
 
     const def = machine<Form, any, any, any>();
 
@@ -249,7 +249,7 @@ describe('setting values', () => {
       name: (v: any) => z.string().parseAsync(v),
     });
 
-    type Form = TypeOf<typeof schema>;
+    type Form = Infer<typeof schema>;
 
     const def = machine<Form, any, any, any>();
 
