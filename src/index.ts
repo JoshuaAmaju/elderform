@@ -95,18 +95,18 @@ type Service<T, D, E, Es> = {
   >;
 };
 
-export type Config<T, D = any, E = Error, Es = Error> = {
+export type Config<T, D, E, Es> = {
   onSubmit: (value: T) => D | Promise<D>;
   schema?: Context<T, D, E, Es>['schema'];
   initialValues?: { [K in keyof T]?: T[K] };
 };
 
-export const createForm = <T, D = any, E = Error, Es = Error>({
+export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
   schema,
   onSubmit,
   initialValues,
-}: Config<T, D, E, Es>): Service<T, D, E, Es> => {
-  const def = machine<T, D, E, Es>();
+}: Config<T, D, E, Es>): Service<T, TData, E, Es> => {
+  const def = machine<T, TData, E, Es>();
 
   const service = interpret(
     def
@@ -127,12 +127,12 @@ export const createForm = <T, D = any, E = Error, Es = Error>({
       })
   ).start();
 
-  const generate: Generate<T, D, E, Es> = ({
+  const generate: Generate<T, TData, E, Es> = ({
     states,
     schema,
     values,
     errors,
-  }: Context<T, D, E, Es>) => {
+  }: Context<T, TData, E, Es>) => {
     if (!schema || typeof schema === 'boolean') {
       if (__DEV__) {
         console.warn('Cannot generate handlers without schema defined');
