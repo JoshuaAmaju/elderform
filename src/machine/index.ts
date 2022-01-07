@@ -1,5 +1,6 @@
 import { ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { choose, pure } from 'xstate/lib/actions';
+import { Validator } from '..';
 import { actor } from './actor';
 import { Schema } from './types';
 
@@ -65,8 +66,9 @@ export type Events<T, D = any, E = any, Es = any> =
     }
   | {
       id: keyof T;
-      type: EventTypes.Validate | EventTypes.Kill | EventTypes.Spawn;
+      type: EventTypes.Validate | EventTypes.Kill;
     }
+  | { id: string; type: EventTypes.Spawn; value: Validator }
   | { type: 'FAIL'; id: string; reason: any }
   | { type: 'SUCCESS'; id: string; value: any }
   | { type: 'VALIDATING'; id: string };
@@ -198,6 +200,21 @@ export const machine = <T, D, E, Es>() => {
 
             [EventTypes.Change]: {
               actions: onChangeActions,
+            },
+
+            [EventTypes.Spawn]: {
+              cond: ({ schema }) => typeof schema !== 'boolean',
+              actions: [
+                assign({
+                  schema: ({ schema }, { id, value }) => {
+                    return { ...(schema as Schema<T>), [id]: value };
+                  },
+                  actors: ({ actors }, { id, value }) => {
+                    const act = spawn(actor({ id, validator: value }), id);
+                    return { ...actors, [id]: act };
+                  },
+                }),
+              ],
             },
 
             [EventTypes.Submit]: [
