@@ -8,6 +8,7 @@ import {
   SetType,
   States,
 } from './machine';
+import { Validator } from './machine/types';
 
 export * from './machine/types';
 export { object, retry } from './tools';
@@ -79,6 +80,8 @@ export type SubscriptionValue<T, D, E, Es> = Omit<
 
 export type Service<T, D, E, Es> = {
   cancel: () => void;
+  kill: (name: string) => void;
+  spawn: (name: string, fn: Validator) => void;
   submit(...ignore: (keyof T)[]): void;
   set: <T extends SetType<T, D, E, Es>, P extends T['name']>(
     name: P,
@@ -182,6 +185,12 @@ export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
   return {
     __service: service,
     __generate: generate,
+    kill: (id) => {
+      service.send({ id, type: EventTypes.Kill });
+    },
+    spawn: (id, value) => {
+      service.send({ id, value, type: EventTypes.Spawn });
+    },
     cancel: () => {
       service.send(EventTypes.Cancel);
     },
