@@ -9,6 +9,8 @@ export type ActorStates = 'idle' | 'failed' | 'success' | 'validating';
 
 export enum EventTypes {
   Set = 'set',
+  Kill = 'kill',
+  Spawn = 'spawn',
   Submit = 'submit',
   Change = 'change',
   Cancel = 'cancel',
@@ -61,7 +63,10 @@ export type Events<T, D = any, E = any, Es = any> =
       id: keyof T;
       type: EventTypes.Change | EventTypes.ChangeWithValidate;
     }
-  | { id: keyof T; type: EventTypes.Validate }
+  | {
+      id: keyof T;
+      type: EventTypes.Validate | EventTypes.Kill | EventTypes.Spawn;
+    }
   | { type: 'FAIL'; id: string; reason: any }
   | { type: 'SUCCESS'; id: string; value: any }
   | { type: 'VALIDATING'; id: string };
