@@ -202,19 +202,32 @@ export const machine = <T, D, E, Es>() => {
               actions: onChangeActions,
             },
 
+            [EventTypes.Kill]: {
+              actions: assign({
+                schema: ({ schema }, { id }) => {
+                  delete (schema as Schema<T>)[id];
+                  return schema;
+                },
+                actors: ({ actors }, { id }) => {
+                  const act = actors[id];
+                  delete actors[id];
+                  act.stop?.();
+                  return actors;
+                },
+              }),
+            },
+
             [EventTypes.Spawn]: {
               cond: ({ schema }) => typeof schema !== 'boolean',
-              actions: [
-                assign({
-                  schema: ({ schema }, { id, value }) => {
-                    return { ...(schema as Schema<T>), [id]: value };
-                  },
-                  actors: ({ actors }, { id, value }) => {
-                    const act = spawn(actor({ id, validator: value }), id);
-                    return { ...actors, [id]: act };
-                  },
-                }),
-              ],
+              actions: assign({
+                schema: ({ schema }, { id, value }) => {
+                  return { ...(schema as Schema<T>), [id]: value };
+                },
+                actors: ({ actors }, { id, value }) => {
+                  const act = spawn(actor({ id, validator: value }), id);
+                  return { ...actors, [id]: act };
+                },
+              }),
             },
 
             [EventTypes.Submit]: [
