@@ -357,3 +357,70 @@ describe('disable schema', () => {
     service?.send(EventTypes.Submit);
   });
 });
+
+describe('dynamic schema', () => {
+  it('should spawn and kill actor', (done) => {
+    let id = '1';
+    const def = machine();
+    let actorDefined = false;
+
+    const service = interpret(
+      def.withContext({ ...def.context, schema: {} })
+    ).start();
+
+    service.onTransition((state) => {
+      const { context } = state;
+      const { actors, schema } = context as any;
+
+      if (typeof schema !== 'boolean') {
+        if (id in schema && id in actors) {
+          service.send({ id, type: EventTypes.Kill });
+          actorDefined = true;
+        }
+
+        if (actorDefined && !(id in actors) && !(id in schema)) {
+          expect(actors[id]).toBeUndefined();
+          expect(schema[id]).toBeUndefined();
+          done();
+        }
+      }
+    });
+
+    service.send({
+      id,
+      type: EventTypes.Spawn,
+      value: (v) => z.string().parse(v),
+    });
+  });
+
+  it('should not be able to spawn or kill actor because schema is turned off', (done) => {
+    let id = '1';
+    const def = machine();
+    let actorDefined = false;
+
+    const service = interpret(
+      def.withContext({ ...def.context, schema: false })
+    ).start();
+
+    service.onTransition((state) => {
+      const { actors, schema } = state.context;
+
+      if (state.event.type === EventTypes.Spawn) {
+        service.send({ id, type: EventTypes.Kill });
+        actorDefined = true;
+      }
+
+      if (actorDefined && state.event.type === EventTypes.Kill) {
+        expect(schema).toBe(false);
+        expect(actors?.[id]).toBeUndefined();
+        done();
+      }
+    });
+
+    service.send({
+      id,
+      type: EventTypes.Spawn,
+      value: (v) => z.string().parse(v),
+    });
+  });
+});

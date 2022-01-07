@@ -71,6 +71,9 @@ An object which providess
 - `form.validate` ((field) => void) - function to validate given field
 - `form.set` ((name, value) => void) - function to set values for `data`, `error`, `errors`, `schema` or `values`
 - `form.setField` ((name, value) => void) - function to set value of given fields in schema
+- `form.spawn` ((name, validator) => void) - An escape hatch to spawn new fields not specified in the schema. (useful for creating dynamic forms)
+  - > should be used with caution, doing this would make the form unpredictable, given you can no longer reason about your form based on the defined schema.
+- `form.kill` ((name) => void) - A function to kill a `spawned` field
 
 ---
 
