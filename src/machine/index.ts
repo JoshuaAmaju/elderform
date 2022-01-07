@@ -205,10 +205,9 @@ export const machine = <T, D, E, Es>() => {
                 actions: assign({
                   __ignore: (_, { ignore = [] }) => new Set(ignore),
                 }),
-                cond: ({ schema }, { ignore = [] }) => {
-                  if (!schema || typeof schema === 'boolean') return false;
-                  const schemaLength = Object.values(schema).length;
-                  return schemaLength - ignore.length > 0;
+                cond: ({ actors = {} }, { ignore = [] }) => {
+                  const length = Object.values(actors).length;
+                  return length - ignore.length > 0;
                 },
               },
               {
@@ -236,8 +235,8 @@ export const machine = <T, D, E, Es>() => {
 
           entry: [
             assign({ errors: (_) => new Map() }),
-            pure(({ schema, values, __ignore }) => {
-              return Object.keys(schema as Schema)
+            pure(({ actors, values, __ignore }) => {
+              return Object.keys(actors)
                 .filter((key) => !__ignore.has(key as keyof T))
                 .map((key) => {
                   const value = values[key as keyof T];
@@ -256,16 +255,16 @@ export const machine = <T, D, E, Es>() => {
                 return (
                   ctx.errors.size > 0 &&
                   ctx.__validationMarker.size >=
-                    Object.keys(ctx.schema as Schema).length - ctx.__ignore.size
+                    Object.keys(ctx.actors).length - ctx.__ignore.size
                 );
               },
             },
             {
               target: 'submitting',
-              cond: ({ schema, __ignore, __validationMarker }) => {
+              cond: ({ actors, __ignore, __validationMarker }) => {
                 return (
                   __validationMarker.size >=
-                  Object.keys(schema as Schema).length - __ignore.size
+                  Object.keys(actors).length - __ignore.size
                 );
               },
             },

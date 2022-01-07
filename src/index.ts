@@ -61,9 +61,16 @@ export type FormState =
   | 'submitted'
   | 'error';
 
-export type SubscriptionValue<T, D, E, Es> = Omit<
+export type SubscriptionValue<T, D, E, Es> = Pick<
   Context<T, D, E, Es>,
-  '__ignore' | 'actors' | 'schema' | '__validationMarker'
+  | 'data'
+  | 'error'
+  | 'values'
+  | 'states'
+  | 'errors'
+  | 'failureCount'
+  | 'dataUpdatedAt'
+  | 'errorUpdatedAt'
 > & {
   state: FormState;
   isIdle: boolean;
@@ -136,19 +143,18 @@ export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
 
   const generate: Generate<T, TData, E, Es> = ({
     states,
-    schema,
     values,
     errors,
+    schema,
+    actors = {},
   }: Context<T, TData, E, Es>) => {
-    if (!schema || typeof schema === 'boolean') {
-      if (__DEV__) {
-        console.warn('Cannot generate handlers without schema defined');
+    if (__DEV__) {
+      if (!schema || typeof schema === 'boolean') {
+        console.warn('No schema defined to generate handlers from');
       }
-
-      return;
     }
 
-    const entries = Object.keys(schema).map((k) => {
+    const entries = Object.keys(actors).map((k) => {
       const id = k as keyof T;
       const value = values[id];
       const error = errors.get(id);
