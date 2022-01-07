@@ -64,10 +64,8 @@ export type Events<T, D = any, E = any, Es = any> =
       id: keyof T;
       type: EventTypes.Change | EventTypes.ChangeWithValidate;
     }
-  | {
-      id: keyof T;
-      type: EventTypes.Validate | EventTypes.Kill;
-    }
+  | { id: keyof T; type: EventTypes.Validate }
+  | { id: any; type: EventTypes.Kill }
   | { id: string; type: EventTypes.Spawn; value: Validator }
   | { type: 'FAIL'; id: string; reason: any }
   | { type: 'SUCCESS'; id: string; value: any }
@@ -203,22 +201,23 @@ export const machine = <T, D, E, Es>() => {
             },
 
             [EventTypes.Kill]: {
+              cond: 'notBoolSchema',
               actions: assign({
                 schema: ({ schema }, { id }) => {
-                  delete (schema as Schema<T>)[id];
+                  delete (schema as Schema<T>)[id as keyof T];
                   return schema;
                 },
                 actors: ({ actors }, { id }) => {
-                  const act = actors[id];
-                  delete actors[id];
-                  act.stop?.();
+                  const act = actors?.[id];
+                  delete actors?.[id];
+                  act?.stop?.();
                   return actors;
                 },
               }),
             },
 
             [EventTypes.Spawn]: {
-              cond: ({ schema }) => typeof schema !== 'boolean',
+              cond: 'notBoolSchema',
               actions: assign({
                 schema: ({ schema }, { id, value }) => {
                   return { ...(schema as Schema<T>), [id]: value };
@@ -376,6 +375,8 @@ export const machine = <T, D, E, Es>() => {
           typeof schema !== 'boolean' &&
           !!schema &&
           Object.values(schema as Schema).length > 0,
+
+        notBoolSchema: ({ schema }) => typeof schema !== 'boolean',
       },
 
       actions: {
