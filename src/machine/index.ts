@@ -3,6 +3,8 @@ import { choose, pure } from 'xstate/lib/actions';
 import { Validator } from '..';
 import { actor } from './actor';
 import { Schema } from './types';
+import { flatten } from './utils';
+import recPath from 'object-path';
 
 declare var __DEV__: boolean;
 
@@ -273,7 +275,7 @@ export const machine = <T, D, E, Es>() => {
               return Object.keys(actors)
                 .filter((key) => !__ignore.has(key as keyof T))
                 .map((key) => {
-                  const value = values[key as keyof T];
+                  const value = recPath.get(values, key);
                   return send(
                     { value, values, type: 'VALIDATE' },
                     { to: key as string }
@@ -403,10 +405,9 @@ export const machine = <T, D, E, Es>() => {
 
         setInitialStates: assign({
           states: ({ schema }) => {
-            const entries = Object.keys(schema as Schema).map((key) => [
-              key,
-              'idle',
-            ]);
+            const flattened = flatten(schema as Schema);
+
+            const entries = Object.keys(flattened).map((key) => [key, 'idle']);
             return Object.fromEntries(entries);
           },
         }),
@@ -415,11 +416,13 @@ export const machine = <T, D, E, Es>() => {
           actors: ({ schema }) => {
             const shape = schema as Schema;
 
-            const entries = Object.keys(shape).map((key) => {
+            const flattened = flatten(shape);
+
+            const entries = Object.keys(flattened).map((key) => {
               const act = spawn(
                 actor({
                   id: key as string,
-                  validator: shape[key],
+                  validator: flattened[key],
                 }),
                 key as string
               );
@@ -433,7 +436,8 @@ export const machine = <T, D, E, Es>() => {
 
         setValue: assign({
           values: ({ values }, { id, value }: any) => {
-            return { ...values, [id]: value };
+            recPath.set(values, id, value);
+            return values;
           },
         }),
 

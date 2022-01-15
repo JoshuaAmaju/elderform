@@ -1,3 +1,4 @@
+import recPath from 'object-path';
 import type { Interpreter } from 'xstate';
 import { interpret } from 'xstate';
 import {
@@ -9,12 +10,11 @@ import {
   States,
 } from './machine';
 import { Validator } from './machine/types';
+import { FlattenKeys, FlattenValues } from './machine/utils';
 
 export * from './machine/types';
 export { object, retry } from './tools';
-
 export type { Context, States, Events };
-
 export { EventTypes };
 
 declare var __DEV__: boolean;
@@ -50,7 +50,9 @@ export type Handler<T, E> = (
   HandleActions<T>;
 
 export type Handlers<T, Es> = {
-  [K in keyof T]: Handler<T[K], Es>;
+  [K in FlattenKeys<T>]: K extends keyof T
+    ? Handler<T[K] extends object ? FlattenValues<T[K]> : T[K], Es>
+    : Handler<any, Es>;
 };
 
 type Generate<T, D, E, Es> = (ctx: Context<T, D, E, Es>) => Handlers<T, Es>;
@@ -98,10 +100,7 @@ export type Service<T, D, E, Es> = {
   setField: <K extends keyof T>(name: K, value: T[K]) => void;
   setFieldWithValidate: <K extends keyof T>(name: K, value: T[K]) => void;
   subscribe: (
-    fn: (
-      val: SubscriptionValue<T, D, E, Es>,
-      handlers: { [K in keyof T]: Handler<T[K], Es> }
-    ) => void
+    fn: (val: SubscriptionValue<T, D, E, Es>, handlers: Handlers<T, Es>) => void
   ) => () => void;
   __generate: Generate<T, D, E, Es>;
   __service: Interpreter<
@@ -159,9 +158,9 @@ export const createForm = <T = any, D = any, E = any, Es = any, TData = D>({
 
     const entries = Object.keys(actors).map((k) => {
       const id = k as keyof T;
-      const value = values[id];
       const error = errors.get(id);
       const state = states[id] as any;
+      const value = recPath.get(values, k);
 
       const handler: Handler<T[typeof id], Es> = {
         state,

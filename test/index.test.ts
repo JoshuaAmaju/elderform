@@ -424,3 +424,76 @@ describe('dynamic schema', () => {
     });
   });
 });
+
+describe('nested schemas', () => {
+  const schema = object({
+    name: (v: any) => z.string().parse(v),
+    address: object({
+      line: (v: any) => z.string().parse(v),
+      city: (v: any) => z.string().parse(v),
+      state: (v: any) => z.string().parse(v),
+    }),
+  });
+
+  type Form = Infer<typeof schema>;
+
+  let service: Interpreter<
+    Context<Form, any, any>,
+    any,
+    Events<Form, any, any>,
+    States<Form, any, any>
+  > | null;
+
+  beforeEach(() => {
+    const def = machine<Form, any, any, any>();
+
+    service = interpret(
+      def.withContext({
+        ...def.context,
+        schema,
+        values: {
+          name: 'Jane',
+          address: {
+            line: 'No 4',
+            city: 'Alausa',
+            state: 'Lagos',
+          },
+        },
+      })
+    ).start();
+  });
+
+  it('should support nested values', (done) => {
+    service?.onTransition((state) => {
+      const { values } = state.context;
+
+      expect(values).toMatchObject({
+        name: 'Jane',
+        address: {
+          line: 'No 4',
+          city: 'Alausa',
+          state: 'Lagos',
+        },
+      });
+
+      done();
+    });
+  });
+
+  it('should support setting value using dot notation', (done) => {
+    service?.onChange(({ values }) => {
+      expect(values).toMatchObject({
+        name: 'Jane',
+        address: { line: 'No 15', city: 'Alausa', state: 'Lagos' },
+      });
+
+      done();
+    });
+
+    service?.send({
+      type: EventTypes.Change,
+      id: 'address.line' as any,
+      value: 'No 15',
+    });
+  });
+});

@@ -41,5 +41,3 @@ export const retry = <T, E = any>(
 };
 
 export const object = <T, S = Schema<T>>(schema: S): S => schema;
-
-export const array = <T, S = Schema<T>>(schema: S): S => schema;
