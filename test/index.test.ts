@@ -424,3 +424,106 @@ describe('dynamic schema', () => {
     });
   });
 });
+
+describe('nested schemas', () => {
+  const schema = object({
+    name: (v: any) => z.string().parse(v),
+    address: object({
+      line: (v: any) => z.string().parse(v),
+      city: (v: any) => z.string().parse(v),
+      state: (v: any) => z.string().parse(v),
+    }),
+  });
+
+  type Form = Infer<typeof schema>;
+
+  let service: Interpreter<
+    Context<Form, any, any>,
+    any,
+    Events<Form, any, any>,
+    States<Form, any, any>
+  > | null;
+
+  beforeEach(() => {
+    const def = machine<Form, any, any, any>();
+
+    service = interpret(
+      def.withContext({
+        ...def.context,
+        schema,
+        values: {
+          name: 'Jane',
+          address: {
+            line: 'No 4',
+            city: 'Alausa',
+            state: 'Lagos',
+          },
+        },
+      })
+    ).start();
+  });
+
+  afterEach(() => {
+    service?.stop();
+    service = null;
+  });
+
+  it('should support nested values', (done) => {
+    service?.onTransition((state) => {
+      const { values } = state.context;
+
+      expect(values).toMatchObject({
+        name: 'Jane',
+        address: {
+          line: 'No 4',
+          city: 'Alausa',
+          state: 'Lagos',
+        },
+      });
+
+      done();
+    });
+  });
+
+  it('should support setting value using dot notation', (done) => {
+    service?.onChange(({ values }) => {
+      expect(values).toMatchObject({
+        name: 'Jane',
+        address: { line: 'No 15', city: 'Alausa', state: 'Lagos' },
+      });
+
+      done();
+    });
+
+    service?.send({
+      type: EventTypes.Change,
+      id: 'address.line' as any,
+      value: 'No 15',
+    });
+  });
+
+  it('should access field state and error using dot notation', (done) => {
+    const dotKey = 'address.line' as keyof Form;
+
+    service?.onTransition(({ event, context }) => {
+      expect(context.errors.has(dotKey)).toBe(false);
+
+      switch (event.type) {
+        case 'VALIDATING':
+          expect(context.states[dotKey]).toBe('validating');
+          break;
+
+        case 'SUCCESS':
+          expect(context.states[dotKey]).toBe('success');
+          done();
+          break;
+
+        default:
+          expect(context.states[dotKey]).toBe('idle');
+          break;
+      }
+    });
+
+    service?.send({ id: dotKey, type: EventTypes.Validate });
+  });
+});

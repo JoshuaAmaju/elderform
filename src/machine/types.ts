@@ -1,4 +1,6 @@
-export type Schema<T = any> = { [K in keyof T]: Validator<T, T[K]> };
+export type Schema<T = any> = {
+  [K in keyof T]: Schema<T[K]> | Validator<T, T[K]>;
+};
 
 export type Validator<SchemaType = any, T = any> = (
   value: T,
