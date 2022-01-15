@@ -1,4 +1,4 @@
-import { Schema, Validator } from './types';
+import { Validator } from './types';
 
 export type FlattenKeys<T> = {
   [K in keyof T & (string | number)]: RecursiveKeyOfHandleValue<T[K], `${K}`>;
@@ -28,31 +28,6 @@ type RecursiveValueOfInner<T> = {
 type RecursiveValueOfHandleValue<TValue> = TValue extends object
   ? RecursiveValueOfInner<TValue>
   : TValue;
-
-const a = {
-  b: {
-    c: 1,
-  },
-  d: {
-    e: {
-      f: '',
-    },
-  },
-};
-
-type M = typeof a;
-
-type N = FlattenKeys<M>;
-
-type T = FlattenValues<M>;
-
-const g = a as unknown as {
-  [K in N]: K extends keyof M
-    ? M[K] extends object
-      ? FlattenValues<M[K]>
-      : M[K]
-    : any;
-};
 
 export const flatten = <T>(
   obj: T,
