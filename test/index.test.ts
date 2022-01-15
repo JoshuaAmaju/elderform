@@ -502,10 +502,12 @@ describe('nested schemas', () => {
     });
   });
 
-  it('should access field state using dot notation', (done) => {
+  it('should access field state and error using dot notation', (done) => {
     const dotKey = 'address.line' as keyof Form;
 
     service?.onTransition(({ event, context }) => {
+      expect(context.errors.has(dotKey)).toBe(false);
+
       switch (event.type) {
         case 'VALIDATING':
           expect(context.states[dotKey]).toBe('validating');
