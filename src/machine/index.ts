@@ -102,6 +102,21 @@ const onChangeWithValidateActions = [
   ),
 ] as any;
 
+const validateActions = [
+  'removeError',
+  'setActorIdle',
+  send(
+    ({ values }: any, { id }: any) => ({
+      values,
+      type: 'VALIDATE',
+      value: recPath.get(values, id),
+    }),
+    {
+      to: (_, { id }) => id,
+    }
+  ),
+] as any;
+
 export const machine = <T, D, E, Es>() => {
   return createMachine<
     Context<T, D, E, Es>,
@@ -137,7 +152,7 @@ export const machine = <T, D, E, Es>() => {
           actions: onChangeActions,
         },
 
-        [EventTypes.Validate]: {
+        [EventTypes.ChangeWithValidate]: {
           target: 'idle',
           cond: 'hasSchema',
           actions: onChangeWithValidateActions,
@@ -253,7 +268,7 @@ export const machine = <T, D, E, Es>() => {
 
             [EventTypes.Validate]: {
               cond: 'hasSchema',
-              actions: onChangeWithValidateActions,
+              actions: validateActions,
             },
 
             [EventTypes.ChangeWithValidate]: {

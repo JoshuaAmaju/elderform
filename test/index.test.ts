@@ -463,6 +463,11 @@ describe('nested schemas', () => {
     ).start();
   });
 
+  afterEach(() => {
+    service?.stop();
+    service = null;
+  });
+
   it('should support nested values', (done) => {
     service?.onTransition((state) => {
       const { values } = state.context;
@@ -495,5 +500,28 @@ describe('nested schemas', () => {
       id: 'address.line' as any,
       value: 'No 15',
     });
+  });
+
+  it('should access field state using dot notation', (done) => {
+    const dotKey = 'address.line' as keyof Form;
+
+    service?.onTransition(({ event, context }) => {
+      switch (event.type) {
+        case 'VALIDATING':
+          expect(context.states[dotKey]).toBe('validating');
+          break;
+
+        case 'SUCCESS':
+          expect(context.states[dotKey]).toBe('success');
+          done();
+          break;
+
+        default:
+          expect(context.states[dotKey]).toBe('idle');
+          break;
+      }
+    });
+
+    service?.send({ id: dotKey, type: EventTypes.Validate });
   });
 });
