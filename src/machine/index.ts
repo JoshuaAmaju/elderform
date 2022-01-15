@@ -4,7 +4,7 @@ import { Validator } from '..';
 import { actor } from './actor';
 import { Schema } from './types';
 import { flatten } from './utils';
-import recPath from 'object-path';
+import { get, set } from 'object-path';
 
 declare var __DEV__: boolean;
 
@@ -109,7 +109,7 @@ const validateActions = [
     ({ values }: any, { id }: any) => ({
       values,
       type: 'VALIDATE',
-      value: recPath.get(values, id),
+      value: get(values, id),
     }),
     {
       to: (_, { id }) => id,
@@ -290,7 +290,7 @@ export const machine = <T, D, E, Es>() => {
               return Object.keys(actors)
                 .filter((key) => !__ignore.has(key as keyof T))
                 .map((key) => {
-                  const value = recPath.get(values, key);
+                  const value = get(values, key);
                   return send(
                     { value, values, type: 'VALIDATE' },
                     { to: key as string }
@@ -451,7 +451,7 @@ export const machine = <T, D, E, Es>() => {
 
         setValue: assign({
           values: ({ values }, { id, value }: any) => {
-            recPath.set(values, id, value);
+            set(values, id, value);
             return values;
           },
         }),
