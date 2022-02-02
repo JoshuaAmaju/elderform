@@ -45,6 +45,7 @@ form.submit();
 
 - [Quick start](#quick-start)
 - [API](#api)
+- [Nested schema](#nested-schema)
 - [Examples](#examples)
 
 ## API
@@ -144,3 +145,33 @@ An `object` containing handlers for each field present in the schema
 
 - [Basic](https://codesandbox.io/s/elderform-basic-jtwff)
 - [Async validation](https://codesandbox.io/s/elderform-async-validation-e1twr?file=/src/index.ts)
+
+## Nested schema
+
+```ts
+const form = createForm({
+  schema: object({
+    age: (val) => z.number().parse(val),
+    name: object({
+      first: (val) => z.string().parse(val),
+      middle: (val) => z.string().parse(val),
+      last: (val) => z.string().parse(val),
+    }),
+    mother: object({
+      name: object({
+        first: (val) => z.string().parse(val),
+        middle: (val) => z.string().parse(val),
+        last: (val) => z.string().parse(val),
+      }),
+    }),
+  }),
+  onSubmit: () => {
+    return Promise.resolve();
+  },
+});
+
+form.subscribe((state, handlers) => {
+  const firstName = handlers['name.first'];
+  const motherFirstName = handlers['mother.name.first'];
+});
+```
