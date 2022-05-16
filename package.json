@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "analyze": "size-limit",
-    "build": "dts build",
+    "build": "dts build --entry src/index.ts --entry src/tools.ts --entry src/machine/*.ts",
     "lint": "dts lint",
     "prepare": "dts build",
     "size": "size-limit",
