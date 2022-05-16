@@ -29,6 +29,10 @@ type RecursiveValueOfHandleValue<TValue> = TValue extends object
   ? RecursiveValueOfInner<TValue>
   : TValue;
 
+export const isValidator = (x: any): x is Validator<any, any> => {
+  return typeof x === 'function';
+};
+
 export const flatten = <T>(
   obj: T,
   roots: (keyof T)[] = [],

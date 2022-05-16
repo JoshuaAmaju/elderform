@@ -1,5 +1,3 @@
-import { Schema } from './machine/types';
-
 type Config<TError> = {
   retries?: number;
   delay?: number | ((n: number) => number);
@@ -39,5 +37,3 @@ export const retry = <T, E = any>(
     run();
   });
 };
-
-export const object = <T, S = Schema<T>>(schema: S): S => schema;

@@ -45,6 +45,7 @@ form.submit();
 
 - [Quick start](#quick-start)
 - [API](#api)
+- [Nested schema](#nested-schema)
 - [Examples](#examples)
 
 ## API
@@ -62,40 +63,37 @@ form.submit();
 
 ### Returns:
 
-An object which providess
+An object which provides
 
-- `form.submit` ((...ignore?: string[]) => void) - a function to submit the form
-- `form.cancel` (() => void) - function to cancel the current form submission
-- `form.subscribe` ((stateListener) => () => void) - a state listener with the current state of the form (see below for [stateListener](#state-listener))
-- `form.__service` - the base service (xstate interpreter), made available for library authors to creating wrappers for frameworks
-- `form.validate` ((field) => void) - function to validate given field
-- `form.set` ((name, value) => void) - function to set values for `data`, `error`, `errors`, `schema` or `values`
-- `form.setField` ((name, value) => void) - function to set value of given fields in schema
-- `form.spawn` ((name, validator) => void) - An escape hatch to spawn new fields not specified in the schema. (useful for creating dynamic forms)
-  - > should be used with caution, doing this would make the form unpredictable, given you can no longer reason about your form based on the defined schema.
-- `form.kill` ((name) => void) - A function to kill a `spawned` field
+- `submit` ((...ignore?: string[]) => void) - a function to submit the form
+- `reset` - a function to reset the form state to its initial state
+- `cancelSubmit` (() => void) - function to cancel the current form submission
+- `submitAsync` - async version of submit and resolves with the submission result
+- `subscribe` ((stateListener) => () => void) - a state listener with the current state of the form (see below for [stateListener](#state-listener))
+- `__service` - the base service (xstate interpreter), made available for library authors to creating wrappers for frameworks
+- `validate` ((field, value?) => void) - function to validate given field
+<!-- - `set` ((name, value) => void) - function to set values for `data`, `error`, `errors`, `schema` or `values` -->
+- `spawn` ((name, value, validator) => void) - An escape hatch to spawn new fields not specified in the schema. (useful for creating dynamic forms)
+- `kill` ((name) => void) - A function to kill a `spawned` field
 
 ---
 
 ### State Listener
 
-`form.subscribe(`[currentState](#currentState), [handlers](#handlers)`)`
+`subscribe(`[currentState](#currentState)`)`
 
 #### `currentState`
 
 - state - [Form State](#form-state)
 
-- Boolean flags derived from form `state`
+- Boolean flags derived from form `state` value
 
   - `isIdle`
   - `isValidating`
   - `isSubmitting`
-  - `isSuccess`
-  - `submitted` - similar to `isSuccess`
+  - `submitted`
   - `isError`
-  - `validatedWithErrors` - derived from validating state and if errors property is not empty
-  - `submittedWithoutError` - derived from submitted state and if errors property is empty
-  - `submittedWithError` - derived from error state and if errors property is not empty.
+  - `isSuccess` - similar to `submitted`
 
 - Others
   - `values` (object) - form values (Defaults to an empty object)
@@ -105,25 +103,11 @@ An object which providess
   - `error` (TError | null)
     - Defaults to `undefined`
     - The error object last from submission, if an error was thrown
-  - `errors` (Map<string, TErrors>) - a map containing errors for each field after validation
+  - `errors` (Record<string, TErrors>) - an object of errors for each field after validation
   - `dataUpdatedAt` (number) -
     The timestamp for when the form most recently submitted successfully and returned data (Defaults to `0`)
   - `errorUpdatedAt` (number) -
     The timestamp for when the form most recently failed to submit successfully and returned error (Defaults to `0`).
-
-#### `handlers`
-
-An `object` containing handlers for each field present in the schema
-
-| key                        | type                        |
-| -------------------------- | --------------------------- |
-| `state`                    | [Field State](#field-state) |
-| `error`                    | `TErrors`                   |
-| `value`                    | `T` or `null`               |
-| `set` or `setWithValidate` | `(value: T) => void`        |
-| `validate`                 | `() => void`                |
-
----
 
 ### Form State
 
@@ -144,3 +128,32 @@ An `object` containing handlers for each field present in the schema
 
 - [Basic](https://codesandbox.io/s/elderform-basic-jtwff)
 - [Async validation](https://codesandbox.io/s/elderform-async-validation-e1twr?file=/src/index.ts)
+
+## Nested schema
+
+```ts
+const form = createForm({
+  initialValues: {
+    age: 10,
+    name: {
+      last: '',
+      first: '',
+      middle: '',
+    },
+    mother: {
+      name: {
+        last: '',
+        first: '',
+        middle: '',
+      },
+    },
+  },
+  onSubmit: () => {
+    return Promise.resolve();
+  },
+});
+
+form.subscribe((state) => {
+  ...
+});
+```
