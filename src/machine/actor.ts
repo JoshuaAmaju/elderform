@@ -1,83 +1,133 @@
 import { assign, createMachine, sendParent } from 'xstate';
+import { choose } from 'xstate/lib/actions';
 import { Validator } from './types';
 
-export type Context = { value: any; values: any };
-
-export type States = { context: Context; value: 'idle' | 'validating' };
+export type Ctx<T = any, E = any> = {
+  value: T;
+  error?: E | null;
+};
 
 export type Events =
-  | { id: string; type: 'FAIL' | 'SUCCESS' }
-  | { type: 'VALIDATE'; value: any; values: any };
+  | { type: 'reset' }
+  | { type: 'change'; value: any }
+  | { type: 'validate'; value?: any; values: any }
+  | { type: 'set'; name: 'error' | 'value'; value: any };
 
-export const actor = ({
-  id,
-  validator,
-}: {
-  id: string;
-  validator: Validator;
-}) => {
-  return createMachine<Context, Events, States>(
+export type States = {
+  value: 'idle' | 'validating' | 'error' | 'success';
+  context: Ctx;
+};
+
+export const config = (
+  id: string,
+  initialValue: unknown,
+  validator: Validator
+) => {
+  return createMachine<Ctx, Events, States>(
     {
       initial: 'idle',
 
-      context: {} as any,
+      context: {
+        value: initialValue,
+      },
 
-      states: {
-        idle: {
-          on: {
-            VALIDATE: {
-              actions: 'setValue',
-              target: 'validating',
-            },
-          },
+      on: {
+        validate: 'validating',
+
+        reset: {
+          target: 'idle',
+          actions: assign({
+            error: (_) => null,
+            value: (_) => initialValue,
+          }),
         },
 
-        validating: {
-          entry: 'sendValidating',
-
-          on: {
-            VALIDATE: {
-              internal: false,
+        set: {
+          actions: choose([
+            {
               actions: 'setValue',
-              target: 'validating',
+              cond: (_, { name }) => name === 'value',
             },
+            {
+              cond: (_, { name }) => name === 'error',
+              actions: assign({ error: (_, { value }) => value }),
+            },
+          ]),
+        },
+
+        change: [
+          {
+            in: 'error',
+            target: 'idle',
+            actions: 'setValue',
           },
+          {
+            in: 'validating',
+            actions: 'setValue',
+            target: 'validating',
+          },
+          {
+            actions: 'setValue',
+          },
+        ],
+      },
+
+      states: {
+        idle: {},
+
+        validating: {
+          entry: 'notifyValidating',
 
           invoke: {
             src: 'validate',
+            onError: {
+              target: 'error',
+              actions: 'setError',
+            },
             onDone: {
               target: 'idle',
-              actions: 'sendSuccess',
-            },
-            onError: {
-              target: 'idle',
-              actions: 'sendFail',
+              actions: [
+                'notifySuccess',
+                assign({ value: (_, { data }) => data }),
+              ],
             },
           },
         },
+
+        error: {
+          exit: 'clearError',
+        },
+
+        success: {},
       },
     },
     {
       actions: {
         setValue: assign({
           value: (_, { value }: any) => value,
-          values: (_, { values }: any) => values,
         }),
 
-        sendFail: sendParent((_, { data }: any) => {
-          return { id, type: 'FAIL', reason: data };
+        setError: assign({
+          error: (_, { data }: any) => data,
         }),
 
-        sendSuccess: sendParent((_, { data }: any) => {
-          return { id, value: data, type: 'SUCCESS' };
+        clearError: assign({ error: (_) => null }),
+
+        notifyValidating: sendParent(() => {
+          return { id, type: 'actor_validating' };
         }),
 
-        sendValidating: sendParent(() => ({ id, type: 'VALIDATING' })),
+        notifySuccess: sendParent((_, { data }: any) => {
+          return { id, type: 'actor_success', value: data };
+        }),
+
+        notifyError: sendParent((_, { data }: any) => {
+          return { id, type: 'actor_error', error: data };
+        }),
       },
-
       services: {
-        validate: async ({ value, values }) => {
-          const res = validator(value, values);
+        validate: async ({ value }, { values, ...e }: any) => {
+          const res = validator(e.value ?? value, values);
           return res instanceof Promise ? await res : res;
         },
       },

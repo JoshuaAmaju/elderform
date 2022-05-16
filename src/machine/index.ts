@@ -1,368 +1,251 @@
+import { del, get, set, create } from 'object-path';
 import { ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { choose, pure } from 'xstate/lib/actions';
 import { Validator } from '..';
-import { actor } from './actor';
-import { Schema } from './types';
-import { flatten } from './utils';
-import { get, set } from 'object-path';
+import * as actor from './actor';
+import { ActorState, Submitter } from './types';
 
-declare var __DEV__: boolean;
-
-export type ActorStates = 'idle' | 'failed' | 'success' | 'validating';
-
-export enum EventTypes {
-  Set = 'set',
-  Kill = 'kill',
-  Spawn = 'spawn',
-  Submit = 'submit',
-  Change = 'change',
-  Cancel = 'cancel',
-  Validate = 'validate',
-  ChangeWithValidate = 'changeWithValidate',
-}
-
-export type Context<T, D = any, E = Error, Es = any> = {
-  data?: D | null;
+export type Ctx<T extends object = any, D = any, E = any, FE = any> = {
+  data?: D;
+  values: T;
   error?: E | null;
   failureCount: number;
-  __ignore: Set<keyof T>;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
-  errors: Map<keyof T, Es>;
-  schema?: Schema<T> | boolean;
+  errors: Record<string, FE>;
   __validationMarker: Set<string>;
-  actors: { [K: string]: ActorRef<any> };
-  states: { [K in keyof T]: ActorStates };
-  values: { [K in keyof T]?: T[K] | null };
+  states: Record<string, ActorState>;
+  actors: Record<string, ActorRef<any>>;
 };
 
-export type SetType<T, D, E, Es> =
-  | { name: 'data'; value: Context<T, D, E, Es>['data'] }
-  | { name: 'error'; value: Context<T, D, E, Es>['error'] }
-  | { name: 'values'; value: Required<Context<T, D, E, Es>['values']> }
-  | { name: 'errors'; value: Required<Context<T, D, E, Es>['errors']> }
-  | { name: 'schema'; value: Schema<T> };
+export type Events =
+  | { type: 'reset' }
+  | { type: 'change'; id: string; value: unknown }
+  | { type: 'spawn'; id: string; value: unknown; validator: Validator }
+  | { type: 'kill'; id: string }
+  | { type: 'validate'; id: string; value?: any }
+  | { type: 'clear_error'; id: string }
+  | { type: 'submit' | 'cancel' }
 
-export type States<T, D = any, E = any> =
-  | { value: 'waitingInit'; context: Context<T, D, E> }
-  | { value: 'idle'; context: Context<T, D, E> & { schema: Schema<T> } }
-  | {
-      value: 'validating';
-      context: Context<T, D, E> & { schema: Schema<T> };
-    }
-  | {
-      value: 'submitting';
-      context: Context<T, D, E> & { schema: Schema<T> };
-    }
-  | { value: 'submitted'; context: Context<T, D, E> & { data: D } }
-  | { value: 'error'; context: Context<T, D, E> & { error: E } };
+  // actor events
+  | { id: string; type: 'actor_validating' }
+  | { id: string; type: 'actor_error'; error: unknown }
+  | { id: string; type: 'actor_success'; value: unknown };
 
-export type Events<T, D = any, E = any, Es = any> =
-  | { type: EventTypes.Cancel }
-  | { type: EventTypes.Submit; ignore?: (keyof T)[] }
-  | ({ type: EventTypes.Set } & SetType<T, D, E, Es>)
-  | {
-      value: any;
-      id: keyof T;
-      type: EventTypes.Change | EventTypes.ChangeWithValidate;
-    }
-  | { id: keyof T; type: EventTypes.Validate }
-  | { id: any; type: EventTypes.Kill }
-  | { id: string; type: EventTypes.Spawn; value: Validator }
-  | { type: 'FAIL'; id: string; reason: any }
-  | { type: 'SUCCESS'; id: string; value: any }
-  | { type: 'VALIDATING'; id: string };
+export type States = {
+  value: 'idle' | 'validating' | 'error' | 'submitting' | 'submitted';
+  context: Ctx;
+};
 
-const onChangeActions = [
-  'setValue',
-  'removeError',
-  choose([
-    {
-      actions: 'setActorIdle',
-      cond: ({ states }: any, { id }: any) => {
-        return states[id] !== 'validating';
-      },
+export type SetType<T extends object, E> =
+  | { name: 'data'; value: Ctx<T, E>['data'] }
+  | { name: 'error'; value: Ctx<T, E>['error'] };
+//   | { name: "values"; value: Required<Ctx<T, E>["values"]> };
+//   | { name: "errors"; value: Required<Ctx<T, E>["errors"]> }
+
+const setState = (state: ActorState) => {
+  return assign<Ctx, Events>({
+    states: ({ states }, { id }: any) => {
+      set(states, id, state);
+      return states;
     },
-  ]),
-] as any;
+  });
+};
 
-const onChangeWithValidateActions = [
-  'setValue',
-  'removeError',
-  'setActorIdle',
-  send(
-    ({ values }: any, { value }: any) => ({
-      value,
-      values,
-      type: 'VALIDATE',
-    }),
-    {
-      to: (_, { id }) => id,
-    }
-  ),
-] as any;
-
-const validateActions = [
-  'removeError',
-  'setActorIdle',
-  send(
-    ({ values }: any, { id }: any) => ({
-      values,
-      type: 'VALIDATE',
-      value: get(values, id),
-    }),
-    {
-      to: (_, { id }) => id,
-    }
-  ),
-] as any;
-
-export const machine = <T, D, E, Es>() => {
-  return createMachine<
-    Context<T, D, E, Es>,
-    Events<T, D, E, Es>,
-    States<T, D, E>
-  >(
+export const createConfig = <T extends object>(
+  initialValues: T,
+  onSubmit: Submitter<T>
+) => {
+  return createMachine<Ctx<T>, Events, States>(
     {
       initial: 'idle',
 
       context: {
-        values: {},
+        actors: {},
+        errors: {},
+        states: {},
         failureCount: 0,
-        errors: new Map(),
-        __ignore: new Set(),
+        dataUpdatedAt: 0,
+        errorUpdatedAt: 0,
         __validationMarker: new Set(),
-      } as any,
-
-      entry: choose([
-        {
-          cond: 'hasSchema',
-          actions: ['spawnActors', 'setInitialStates'],
-        },
-      ]),
+        values: initialValues ?? ({} as T),
+      },
 
       on: {
-        VALIDATING: {
-          actions: ['setActorValidating'],
-        },
+        submit: 'validating',
 
-        // enter idle state if change is sent while in another state
-        [EventTypes.Change]: {
+        reset: {
           target: 'idle',
-          actions: onChangeActions,
+          actions: [
+            pure(({ actors }: any) => {
+              return Object.keys(actors).map((to) => {
+                return send('reset', { to });
+              });
+            }),
+            assign({
+              data: (_) => null,
+              error: (_) => null,
+              errors: (_) => ({}),
+              failureCount: (_) => 0,
+              dataUpdatedAt: (_) => 0,
+              errorUpdatedAt: (_) => 0,
+              values: (_) => initialValues ?? {},
+              states: ({ states, actors }) => {
+                Object.keys(actors).forEach((k) => set(states, k, 'idle'));
+                return states;
+              },
+            }),
+          ],
         },
 
-        [EventTypes.ChangeWithValidate]: {
-          target: 'idle',
-          cond: 'hasSchema',
-          actions: onChangeWithValidateActions,
-        },
-
-        [EventTypes.Set]: [
+        clear_error: [
+          {
+            cond: (_, { id }) => !!id,
+            actions: [
+              'removeActorError',
+              send((_) => ({ type: 'set', name: 'error', value: null }), {
+                to: (_, { id }) => id,
+              }),
+            ],
+          },
           {
             target: 'idle',
-            in: 'waitingInit',
-            actions: ['set', 'maybeSpawnActors', 'maybeSetInitialStates'],
-          },
-          {
-            actions: choose([
-              {
-                actions: [
-                  'set',
-                  (_, { name }) => {
-                    if (__DEV__) {
-                      switch (name) {
-                        case 'values':
-                        case 'errors':
-                          console.warn(
-                            `setting value of "${name}" without defining a schema`
-                          );
-                          break;
-                      }
-                    }
-                  },
-                ],
-                cond: (_, e) => e.name !== 'schema',
-              },
-              {
-                actions: 'set',
-                cond: (ctx, e) =>
-                  !ctx.schema && (e.value !== null || e.value !== undefined),
-              },
-            ]),
+            actions: 'clearError',
           },
         ],
+
+        change: {
+          actions: [
+            'setValue',
+            'setInitialState',
+            'removeActorError',
+            choose([
+              {
+                cond: 'has_actor',
+                actions: send((_, { value }) => ({ type: 'change', value }), {
+                  to: (_, { id }) => id,
+                }),
+              },
+            ]),
+          ],
+        },
+
+        validate: {
+          cond: 'has_actor',
+          actions: [
+            'removeActorError',
+            send(
+              ({ values }, { value }) => ({ type: 'validate', value, values }),
+              { to: (_, { id }) => id }
+            ),
+          ],
+        },
+
+        spawn: {
+          actions: ['spawnActor', 'setInitialState'],
+        },
+
+        kill: {
+          cond: 'has_actor',
+          actions: ['killActor', 'removeState'],
+        },
+
+        actor_success: {
+          actions: ['setValue', 'setSuccessState'],
+        },
+
+        actor_error: {
+          actions: ['setActorError', 'setErrorState'],
+        },
+
+        actor_validating: {
+          actions: 'setValidatingState',
+        },
       },
 
       states: {
-        // Wait for the machine to be initialised with a schema
-        waitingInit: {},
-
-        idle: {
-          always: {
-            target: 'waitingInit',
-            cond: ({ schema }) => !schema && typeof schema !== 'boolean',
-          },
-
-          on: {
-            FAIL: {
-              actions: ['setActorFail', 'setError'],
-            },
-
-            SUCCESS: {
-              actions: ['setActorSuccess', 'removeError', 'setValue'],
-            },
-
-            [EventTypes.Change]: {
-              actions: onChangeActions,
-            },
-
-            [EventTypes.Kill]: {
-              cond: 'notBoolSchema',
-              actions: assign({
-                schema: ({ schema }, { id }) => {
-                  delete (schema as Schema<T>)[id as keyof T];
-                  return schema;
-                },
-                actors: ({ actors }, { id }) => {
-                  const act = actors?.[id];
-                  delete actors?.[id];
-                  act?.stop?.();
-                  return actors;
-                },
-              }),
-            },
-
-            [EventTypes.Spawn]: {
-              cond: 'notBoolSchema',
-              actions: assign({
-                schema: ({ schema }, { id, value }) => {
-                  return { ...(schema as Schema<T>), [id]: value };
-                },
-                actors: ({ actors }, { id, value }) => {
-                  const act = spawn(actor({ id, validator: value }), id);
-                  return { ...actors, [id]: act };
-                },
-              }),
-            },
-
-            [EventTypes.Submit]: [
-              {
-                actions: 'onSubmitWithErrors',
-                cond: ({ errors }) => errors.size > 0,
-              },
-              {
-                target: 'validating',
-                actions: assign({
-                  __ignore: (_, { ignore = [] }) => new Set(ignore),
-                }),
-                cond: ({ actors = {} }, { ignore = [] }) => {
-                  const length = Object.values(actors).length;
-                  return length - ignore.length > 0;
-                },
-              },
-              {
-                target: 'submitting',
-              },
-            ],
-
-            [EventTypes.Validate]: {
-              cond: 'hasSchema',
-              actions: validateActions,
-            },
-
-            [EventTypes.ChangeWithValidate]: {
-              cond: 'hasSchema',
-              actions: onChangeWithValidateActions,
-            },
-          },
-        },
+        idle: {},
 
         validating: {
           exit: assign({
-            __ignore: (_) => new Set(),
             __validationMarker: (_) => new Set(),
           }),
 
-          entry: [
-            assign({ errors: (_) => new Map() }),
-            pure(({ actors, values, __ignore }) => {
-              return Object.keys(actors)
-                .filter((key) => !__ignore.has(key as keyof T))
-                .map((key) => {
-                  const value = get(values, key);
-                  return send(
-                    { value, values, type: 'VALIDATE' },
-                    { to: key as string }
-                  );
-                });
-            }),
-          ],
+          entry: pure(({ actors, values }: any) => {
+            return Object.keys(actors).map((to) => {
+              return send({ values, type: 'validate' }, { to });
+            });
+          }),
 
           always: [
             {
               target: 'idle',
-              cond: (ctx) => {
+              cond: (c) => {
                 return (
-                  ctx.errors.size > 0 &&
-                  ctx.__validationMarker.size >=
-                    Object.keys(ctx.actors).length - ctx.__ignore.size
+                  Object.values(c.errors).length > 0 &&
+                  c.__validationMarker.size >= Object.keys(c.actors).length
                 );
               },
             },
             {
               target: 'submitting',
-              cond: ({ actors, __ignore, __validationMarker }) => {
+              cond: (c) => {
                 return (
-                  __validationMarker.size >=
-                  Object.keys(actors).length - __ignore.size
+                  c.__validationMarker.size >= Object.keys(c.actors).length
                 );
               },
             },
           ],
 
           on: {
-            FAIL: {
-              actions: ['mark', 'setActorFail', 'setError'],
+            cancel: 'idle',
+
+            actor_error: {
+              actions: ['setActorError', 'mark', 'setErrorState'],
             },
 
-            SUCCESS: {
-              actions: ['mark', 'setActorSuccess', 'removeError', 'setValue'],
+            actor_success: {
+              actions: [
+                'setValue',
+                'removeActorError',
+                'mark',
+                'setSuccessState',
+              ],
             },
           },
         },
 
         submitting: {
           on: {
-            [EventTypes.Cancel]: 'idle',
+            cancel: 'idle',
+
+            '*': undefined,
           },
 
-          entry: assign({
-            data: (_) => null,
-            error: (_) => null,
-          }),
-
-          exit: choose([
-            {
-              cond: 'hasSchema',
-              actions: 'setInitialStates',
-            },
-          ]),
+          entry: [
+            'clearError',
+            assign({
+              data: (_) => null,
+              error: (_) => null,
+            }),
+          ],
 
           invoke: {
             src: 'submit',
-            onDone: {
-              target: 'submitted',
-              actions: assign({
-                data: (_, { data }) => data,
-                dataUpdatedAt: (_) => Date.now(),
-              }),
-            },
+
             onError: {
               target: 'error',
               actions: assign({
                 error: (_, { data }) => data,
                 errorUpdatedAt: (_) => Date.now(),
+              }),
+            },
+
+            onDone: {
+              target: 'submitted',
+              actions: assign({
+                data: (_, { data }) => data,
+                dataUpdatedAt: (_) => Date.now(),
               }),
             },
           },
@@ -379,75 +262,16 @@ export const machine = <T, D, E, Es>() => {
             failureCount: (ctx) => ctx.failureCount + 1,
           }),
 
-          on: {
-            [EventTypes.Submit]: 'submitting',
-          },
+          exit: 'clearError',
         },
       },
     },
     {
       guards: {
-        hasSchema: ({ schema }) =>
-          typeof schema !== 'boolean' &&
-          !!schema &&
-          Object.values(schema as Schema).length > 0,
-
-        notBoolSchema: ({ schema }) => typeof schema !== 'boolean',
+        has_actor: ({ actors }, { id }: any) => id in actors,
       },
-
       actions: {
-        set: assign((ctx, { name, value }: any) => {
-          return { ...ctx, [name]: value };
-        }),
-
-        maybeSpawnActors: choose([
-          {
-            actions: 'spawnActors',
-            cond: ({ schema }, { name, value }: any) => {
-              return !schema && name === 'schema' && !!value && value !== false;
-            },
-          },
-        ]),
-
-        maybeSetInitialStates: choose([
-          {
-            actions: 'setInitialStates',
-            cond: ({ states }, { name, value }: any) => {
-              return !states && name === 'schema' && value !== false;
-            },
-          },
-        ]),
-
-        setInitialStates: assign({
-          states: ({ schema }) => {
-            const flattened = flatten(schema as Schema);
-
-            const entries = Object.keys(flattened).map((key) => [key, 'idle']);
-            return Object.fromEntries(entries);
-          },
-        }),
-
-        spawnActors: assign({
-          actors: ({ schema }) => {
-            const shape = schema as Schema;
-
-            const flattened = flatten(shape);
-
-            const entries = Object.keys(flattened).map((key) => {
-              const act = spawn(
-                actor({
-                  id: key as string,
-                  validator: flattened[key],
-                }),
-                key as string
-              );
-
-              return [key, act] as const;
-            });
-
-            return Object.fromEntries(entries);
-          },
-        }),
+        clearError: assign({ error: (_) => null }),
 
         setValue: assign({
           values: ({ values }, { id, value }: any) => {
@@ -456,17 +280,15 @@ export const machine = <T, D, E, Es>() => {
           },
         }),
 
-        setError: assign({
-          errors: ({ errors }, { id, reason }: any) => {
-            return errors.set(id, reason);
+        setActorError: assign({
+          errors: ({ errors }, { id, error }: any) => {
+            set(errors, id, error);
+            return errors;
           },
         }),
 
-        removeError: assign({
-          errors: ({ errors }, { id }: any) => {
-            errors.delete(id);
-            return errors;
-          },
+        removeActorError: assign({
+          errors: ({ errors }, { id }: any) => del(errors, id),
         }),
 
         mark: assign({
@@ -475,33 +297,47 @@ export const machine = <T, D, E, Es>() => {
           },
         }),
 
-        setActorIdle: assign({
-          states: ({ states }, { id }: any) => {
-            return { ...states, [id]: 'idle' };
+        setError: assign({
+          error: (_, { data }: any) => data,
+        }),
+
+        setInitialState: setState('idle'),
+
+        setSuccessState: setState('success'),
+
+        setErrorState: setState('error'),
+
+        setValidatingState: setState('validating'),
+
+        removeState: assign({
+          states: ({ states }, { id }: any) => del(states, id),
+        }),
+
+        spawnActor: assign({
+          values: ({ values }, { id, value }: any) => {
+            set(values, id, value ?? get(initialValues, id));
+            return values;
+          },
+          actors: ({ actors }, { id, value, validator }: any) => {
+            const v = value ?? get(initialValues, id);
+            const spawned = spawn(actor.config(id, v, validator), id);
+            return { ...actors, [id]: spawned };
           },
         }),
 
-        setActorFail: assign({
-          states: ({ states }, { id }: any) => {
-            return { ...states, [id]: 'failed' };
-          },
-        }),
-
-        setActorSuccess: assign({
-          states: ({ states }, { id }: any) => {
-            return { ...states, [id]: 'success' };
-          },
-        }),
-
-        setActorValidating: assign({
-          states: ({ states }, { id }: any) => {
-            return { ...states, [id]: 'validating' };
+        killActor: assign({
+          actors: ({ actors }, { id }: any) => {
+            actors[id].stop?.();
+            delete actors[id];
+            return actors;
           },
         }),
       },
-
       services: {
-        submit: () => Promise.resolve(),
+        submit: async ({ values }) => {
+          const res = onSubmit(values);
+          return res instanceof Promise ? await res : res;
+        },
       },
     }
   );
