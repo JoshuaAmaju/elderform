@@ -27,7 +27,7 @@ describe('actor', () => {
 
   it('should create actor with initial value', (done) => {
     const service = interpret(
-      config('1', 'Jeo', (v) => string().parseAsync(v)).withConfig({
+      config('1', 'Joe', (v) => string().parseAsync(v)).withConfig({
         actions: mockActions,
       })
     ).start();
@@ -41,25 +41,25 @@ describe('actor', () => {
   });
 
   it('validation should fail', (done) => {
-    service.onTransition((state) => {
+    service?.onTransition((state) => {
       if (state.matches('error')) {
         expect(state.context.error).not.toBeNull();
         done();
       }
     });
 
-    service.send({ type: 'validate', value: null, values: {} });
+    service?.send({ type: 'validate', value: null, values: {} });
   });
 
   it('validation should pass', (done) => {
-    service.onTransition((state) => {
+    service?.onTransition((state) => {
       if (state.matches('idle') && state.history?.matches('validating')) {
-        expect(state.context.error).toBeNull();
+        expect(state.context.error).toBeUndefined();
         done();
       }
     });
 
-    service.send({ type: 'validate', value: 'Joe', values: {} });
+    service?.send({ type: 'validate', value: 'Joe', values: {} });
   });
 
   it('validation should pass and resolve with new value', (done) => {

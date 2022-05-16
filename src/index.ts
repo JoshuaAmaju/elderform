@@ -1,6 +1,6 @@
 import type { Interpreter } from 'xstate';
 import { interpret, State } from 'xstate';
-import { createConfig } from './machine';
+import { config } from './machine';
 import type { Ctx, Events, States } from './machine';
 import type { Validator, FormState } from './machine/types';
 
@@ -50,7 +50,7 @@ export const createForm = <
     subscriber: (state: SubscriptionValue<T, D, E, FE>) => void
   ) => void;
 } => {
-  const service = interpret(createConfig<T>(initialValues as T, onSubmit));
+  const service = interpret(config<T>(initialValues as T, onSubmit));
 
   const reset: Actions['reset'] = () => {
     service.send('reset');

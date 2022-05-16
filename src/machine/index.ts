@@ -1,9 +1,8 @@
-import { del, get, set, create } from 'object-path';
+import { del, get, set } from 'object-path';
 import { ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { choose, pure } from 'xstate/lib/actions';
-import { Validator } from '..';
 import * as actor from './actor';
-import { ActorState, Submitter } from './types';
+import { ActorState, Submitter, Validator } from './types';
 
 export type Ctx<T extends object = any, D = any, E = any, FE = any> = {
   data?: D;
@@ -52,7 +51,7 @@ const setState = (state: ActorState) => {
   });
 };
 
-export const createConfig = <T extends object>(
+export const config = <T extends object>(
   initialValues: T,
   onSubmit: Submitter<T>
 ) => {

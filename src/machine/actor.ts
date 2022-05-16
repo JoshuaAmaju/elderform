@@ -82,7 +82,7 @@ export const config = (
             src: 'validate',
             onError: {
               target: 'error',
-              actions: 'setError',
+              actions: ['setError', 'notifyError'],
             },
             onDone: {
               target: 'idle',
