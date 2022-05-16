@@ -4,7 +4,13 @@ import { config } from './machine';
 import type { Ctx, Events, States } from './machine';
 import type { Validator, FormState } from './machine/types';
 
-export * from './machine/types';
+import * as types from './machine/types';
+import * as actor from './machine/actor';
+
+export type { types };
+export * from './tools';
+export * from './machine';
+export { actor };
 
 export type SubscriptionValue<T extends object, D, E, Es> = Pick<
   Ctx<T, D, E, Es>,
