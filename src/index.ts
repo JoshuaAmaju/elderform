@@ -16,7 +16,11 @@ export type SubscriptionValue<T extends object, D, E, Es> = Pick<
   | 'failureCount'
   | 'dataUpdatedAt'
   | 'errorUpdatedAt'
->;
+> &
+  Record<
+    'isIdle' | 'isValidating' | 'isSubmitting' | 'submitted' | 'isError',
+    boolean
+  >;
 
 export type Actions<T = any, D = any> = {
   reset: () => void;
@@ -133,6 +137,12 @@ export const createForm = <
 
         const state = s.value as FormState;
 
+        const isIdle = state === 'idle';
+        const isError = state === 'error';
+        const submitted = state === 'submitted';
+        const isValidating = state === 'validating';
+        const isSubmitting = state === 'submitting';
+
         const value = {
           state,
 
@@ -148,6 +158,13 @@ export const createForm = <
           errorUpdatedAt,
 
           actors,
+
+          isIdle,
+          isError,
+          submitted,
+          isValidating,
+          isSubmitting,
+          isSuccess: submitted,
         };
 
         subscriber(value);

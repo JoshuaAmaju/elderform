@@ -91,12 +91,9 @@ An object which provides
   - `isIdle`
   - `isValidating`
   - `isSubmitting`
-  - `isSuccess`
-  - `submitted` - similar to `isSuccess`
+  - `submitted`
   - `isError`
-  - `validatedWithErrors` - derived from validating state and if errors property is not empty
-  - `submittedWithoutError` - derived from submitted state and if errors property is empty
-  - `submittedWithError` - derived from error state and if errors property is not empty.
+  - `isSuccess` - similar to `submitted`
 
 - Others
   - `values` (object) - form values (Defaults to an empty object)
