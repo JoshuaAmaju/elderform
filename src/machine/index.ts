@@ -36,9 +36,9 @@ export type States = {
   context: Ctx;
 };
 
-export type SetType<T extends object, E> =
-  | { name: 'data'; value: Ctx<T, E>['data'] }
-  | { name: 'error'; value: Ctx<T, E>['error'] };
+// export type SetType<T extends object, E> =
+//   | { name: 'data'; value: Ctx<T, E>['data'] }
+//   | { name: 'error'; value: Ctx<T, E>['error'] };
 //   | { name: "values"; value: Required<Ctx<T, E>["values"]> };
 //   | { name: "errors"; value: Required<Ctx<T, E>["errors"]> }
 
