@@ -28,7 +28,7 @@ export type Actions<T = any, D = any> = {
   cancelSubmit: () => void;
   kill: (id: string) => void;
   submitAsync: () => Promise<D>;
-  clearError: (id: string) => void;
+  // clearError: (id: string) => void;
   set: <N extends keyof T>(name: N, value: T[N]) => void;
   validate: <N extends keyof T>(name: N, value?: T[N]) => void;
   spawn: (id: string, value: unknown, validator: Validator) => void;
@@ -64,9 +64,9 @@ export const createForm = <
     service.send('submit');
   };
 
-  const clearError: Actions['clearError'] = (id) => {
-    service.send({ id, type: 'clear_error' });
-  };
+  // const clearError: Actions['clearError'] = (id) => {
+  //   service.send({ id, type: 'clear_error' });
+  // };
 
   const cancelSubmit: Actions['cancelSubmit'] = () => {
     service.send('cancel');
@@ -81,7 +81,7 @@ export const createForm = <
   };
 
   const set: Actions<T>['set'] = (id, value) => {
-    service.send({ id: id as string, value, type: 'change' });
+    service.send({ id: id as string, value, type: 'set' });
   };
 
   const validate: Actions<T>['validate'] = (id, value) => {
@@ -117,7 +117,7 @@ export const createForm = <
     reset,
     submit,
     validate,
-    clearError,
+    // clearError,
     submitAsync,
     cancelSubmit,
     __service: service,

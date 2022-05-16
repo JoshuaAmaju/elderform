@@ -19,11 +19,11 @@ export type Ctx<T extends object = any, D = any, E = any, FE = any> = {
 
 export type Events =
   | { type: 'reset' }
-  | { type: 'change'; id: string; value: unknown }
+  | { type: 'set'; id: string; value: unknown }
   | { type: 'spawn'; id: string; value: unknown; validator: Validator }
   | { type: 'kill'; id: string }
   | { type: 'validate'; id: string; value?: any }
-  | { type: 'clear_error'; id: string }
+  // | { type: 'clear_error'; id: string }
   | { type: 'submit' | 'cancel' }
 
   // actor events
@@ -97,23 +97,23 @@ export const config = <T extends object>(
           ],
         },
 
-        clear_error: [
-          {
-            cond: (_, { id }) => !!id,
-            actions: [
-              'removeActorError',
-              send((_) => ({ type: 'set', name: 'error', value: null }), {
-                to: (_, { id }) => id,
-              }),
-            ],
-          },
-          {
-            target: 'idle',
-            actions: 'clearError',
-          },
-        ],
+        // clear_error: [
+        //   {
+        //     cond: (_, { id }) => !!id,
+        //     actions: [
+        //       'removeActorError',
+        //       send((_) => ({ type: 'set', name: 'error', value: null }), {
+        //         to: (_, { id }) => id,
+        //       }),
+        //     ],
+        //   },
+        //   {
+        //     target: 'idle',
+        //     actions: 'clearError',
+        //   },
+        // ],
 
-        change: {
+        set: {
           actions: [
             'setValue',
             'setInitialState',
@@ -275,6 +275,13 @@ export const config = <T extends object>(
         setValue: assign({
           values: ({ values }, { id, value }: any) => {
             set(values, id, value);
+            return values;
+          },
+        }),
+
+        maybeSetValue: assign({
+          values: ({ values }, { id, value }: any) => {
+            set(values, id, value === undefined ? get(values, id) : value);
             return values;
           },
         }),
