@@ -37,7 +37,7 @@ export type Actions<T = any, D = any> = {
   // clearError: (id: string) => void;
   set: <N extends keyof T>(name: N, value: T[N]) => void;
   validate: <N extends keyof T>(name: N, value?: T[N]) => void;
-  spawn: (id: string, value: unknown, validator: Validator) => void;
+  spawn: (id: string, value: unknown | null, validator: Validator) => void;
 };
 
 export type Config<T extends object, D> = {
