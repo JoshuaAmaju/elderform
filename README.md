@@ -11,9 +11,10 @@
 - Predictable form state
 - Cancel form submission
 - Full typescript support
-- Lazy schema initialisation
-- Tiny: fully packed in just ~5kb
-- Framework agnostic <!-- (with wrappers for X) -->
+- Schemaless (define your fields as you like)
+- Tiny: fully packed in just ~6kb
+- Use any validation library or roll your own
+- Framework agnostic
 - Ships with sensible defaults for form handling
 - > No more "how do I prevent multple submission while currently submitting"
 
@@ -28,12 +29,27 @@ import * as z from 'zod';
 import {createForm} from 'elderform';
 
 const form = createForm({
+  initialValues: {
+    age: 10,
+    name: {
+      last: '',
+      first: '',
+      middle: '',
+    },
+    mother: {
+      name: {
+        last: '',
+        first: '',
+        middle: '',
+      },
+    },
+  },
   onSubmit: () => {
     return Promise.resolve();
   },
 });
 
-form.spawn('name', 'Joe', v => zod.string().parse(v))
+form.spawn('name', null, v => zod.string().parse(v))
 
 form.subscribe((state) => {
   ...
@@ -125,32 +141,3 @@ An object which provides
 
 - [Basic](https://codesandbox.io/s/elderform-basic-jtwff)
 - [Async validation](https://codesandbox.io/s/elderform-async-validation-e1twr?file=/src/index.ts)
-
-## Nested schema
-
-```ts
-const form = createForm({
-  initialValues: {
-    age: 10,
-    name: {
-      last: '',
-      first: '',
-      middle: '',
-    },
-    mother: {
-      name: {
-        last: '',
-        first: '',
-        middle: '',
-      },
-    },
-  },
-  onSubmit: () => {
-    return Promise.resolve();
-  },
-});
-
-form.subscribe((state) => {
-  ...
-});
-```
