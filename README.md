@@ -25,16 +25,15 @@ pnpm add xstate elderform
 
 ```ts
 import * as z from 'zod';
-import {createForm, object} from 'elderform';
+import {createForm} from 'elderform';
 
 const form = createForm({
-  schema: object({
-    name: val => z.string().parse(val),
-  }),
   onSubmit: () => {
     return Promise.resolve();
   },
 });
+
+form.spawn('name', 'Joe', v => zod.string().parse(v))
 
 form.subscribe((state) => {
   ...
@@ -45,7 +44,6 @@ form.submit();
 
 - [Quick start](#quick-start)
 - [API](#api)
-- [Nested schema](#nested-schema)
 - [Examples](#examples)
 
 ## API
@@ -56,8 +54,6 @@ form.submit();
 
 ### Config:
 
-- `schema?` (boolean | object) - object containing functions or `false` to disable schema validation
-  - The schema by default is immutable, you can't change the schema after setting it initialy or by calling `form.set("schema", {...})`.
 - `initialValues?` (object) - initial form values
 - `onSubmit(values: object)` - an async function that handles form submission
 
