@@ -1,10 +1,10 @@
 import { interpret, Interpreter } from 'xstate';
 import * as z from 'zod';
-import { config, Ctx, Events, States } from '../src/machine';
+import { machine, Ctx, Events, States } from '../src/machine';
 
 let service: Interpreter<Ctx, any, Events, States> | null;
 
-const def = config({}, async () => {});
+const def = machine({}, async () => {});
 
 describe('machine', () => {
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe('machine', () => {
   });
 
   it('should initialize with default values', (done) => {
-    const def = config({ name: 'Joe' }, async () => {});
+    const def = machine({ name: 'Joe' }, async () => {});
     const service = interpret(def).start();
 
     service?.onTransition(({ context: ctx }) => {
@@ -100,7 +100,7 @@ describe('submission', () => {
   });
 
   it('should submit with error', (done) => {
-    const def = config({}, async () => {
+    const def = machine({}, async () => {
       throw new Error('error');
     });
 
@@ -195,7 +195,7 @@ describe('nested schemas', () => {
   };
 
   beforeEach(() => {
-    const def = config(values, async () => {});
+    const def = machine(values, async () => {});
     service = interpret(def).start();
   });
 

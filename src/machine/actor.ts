@@ -18,7 +18,7 @@ export type States = {
   context: Ctx;
 };
 
-export const config = (
+export const actor = (
   id: string,
   initialValue: unknown,
   validator: Validator

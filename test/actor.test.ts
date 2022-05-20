@@ -1,4 +1,4 @@
-import { config, Ctx, Events, States } from '../src/machine/actor';
+import { actor, Ctx, Events, States } from '../src/machine/actor';
 import { interpret, Interpreter } from 'xstate';
 import { string } from 'zod';
 
@@ -13,7 +13,7 @@ describe('actor', () => {
 
   beforeEach(() => {
     service = interpret(
-      config('1', null, (v) => string().parseAsync(v)).withConfig({
+      actor('1', null, (v) => string().parseAsync(v)).withConfig({
         actions: mockActions,
       })
     ).start();
@@ -27,7 +27,7 @@ describe('actor', () => {
 
   it('should create actor with initial value', (done) => {
     const service = interpret(
-      config('1', 'Joe', (v) => string().parseAsync(v)).withConfig({
+      actor('1', 'Joe', (v) => string().parseAsync(v)).withConfig({
         actions: mockActions,
       })
     ).start();
@@ -64,7 +64,7 @@ describe('actor', () => {
 
   it('validation should pass and resolve with new value', (done) => {
     const service = interpret(
-      config('1', null, () => 'Jane').withConfig({ actions: mockActions })
+      actor('1', null, () => 'Jane').withConfig({ actions: mockActions })
     ).start();
 
     service.onTransition((state) => {

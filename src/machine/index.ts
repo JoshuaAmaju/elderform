@@ -51,7 +51,7 @@ const setState = (state: ActorState) => {
   });
 };
 
-export const config = <T extends object>(
+export const machine = <T extends object>(
   initialValues: T,
   onSubmit: Submitter<T>
 ) => {
@@ -326,7 +326,7 @@ export const config = <T extends object>(
           },
           actors: ({ actors }, { id, value, validator }: any) => {
             const v = value ?? get(initialValues, id);
-            const spawned = spawn(actor.config(id, v, validator), id);
+            const spawned = spawn(actor.actor(id, v, validator), id);
             return { ...actors, [id]: spawned };
           },
         }),

@@ -26,3 +26,13 @@ type RecursiveValueOfInner<T> = {
 type RecursiveValueOfHandleValue<TValue> = TValue extends object
   ? RecursiveValueOfInner<TValue>
   : TValue;
+
+type Form = {
+  name: {
+    firstName: string;
+    lastName: string;
+  };
+  age: number;
+};
+
+type m = FlattenKeys<Form>;

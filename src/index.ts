@@ -1,16 +1,18 @@
-import type { Interpreter } from 'xstate';
-import { interpret, State } from 'xstate';
-import { config } from './machine';
+import type { Interpreter, State } from 'xstate';
+import { interpret } from 'xstate';
+import { machine } from './machine';
 import type { Ctx, Events, States } from './machine';
-import type { Validator, FormState } from './machine/types';
+import type {
+  Validator,
+  FormState,
+  Submitter,
+  ActorState,
+} from './machine/types';
 
-import * as types from './machine/types';
-import * as actor from './machine/actor';
-
-export type { types };
 export * from './tools';
 export * from './machine';
-export { actor };
+export * as actor from './machine/actor';
+export { Validator, FormState, ActorState, Submitter };
 
 export type SubscriptionValue<T extends object, D, E, Es> = Pick<
   Ctx<T, D, E, Es>,
@@ -34,10 +36,16 @@ export type Actions<T = any, D = any> = {
   cancelSubmit: () => void;
   kill: (id: string) => void;
   submitAsync: () => Promise<D>;
-  // clearError: (id: string) => void;
   set: <N extends keyof T>(name: N, value: T[N]) => void;
   validate: <N extends keyof T>(name: N, value?: T[N]) => void;
   spawn: (id: string, value: unknown | null, validator: Validator) => void;
+};
+
+export type Extra<T extends object, D, E, FE> = {
+  __service: Interpreter<Ctx<T, D, E, FE>, any, Events, States>;
+  subscribe: (
+    subscriber: (state: SubscriptionValue<T, D, E, FE>) => void
+  ) => void;
 };
 
 export type Config<T extends object, D> = {
@@ -45,7 +53,7 @@ export type Config<T extends object, D> = {
   initialValues?: { [K in keyof T]?: T[K] };
 };
 
-export const createForm = <
+export const create = <
   T extends object = any,
   D = any,
   E = any,
@@ -54,13 +62,8 @@ export const createForm = <
 >({
   onSubmit,
   initialValues,
-}: Config<T, D>): Actions<T, TData> & {
-  __service: Interpreter<Ctx<T, D, E, FE>, any, Events, States>;
-  subscribe: (
-    subscriber: (state: SubscriptionValue<T, D, E, FE>) => void
-  ) => void;
-} => {
-  const service = interpret(config<T>(initialValues as T, onSubmit));
+}: Config<T, D>): Actions<T, TData> & Extra<T, TData, E, FE> => {
+  const service = interpret(machine<T>(initialValues as T, onSubmit));
 
   const reset: Actions['reset'] = () => {
     service.send('reset');
@@ -69,10 +72,6 @@ export const createForm = <
   const submit: Actions['submit'] = () => {
     service.send('submit');
   };
-
-  // const clearError: Actions['clearError'] = (id) => {
-  //   service.send({ id, type: 'clear_error' });
-  // };
 
   const cancelSubmit: Actions['cancelSubmit'] = () => {
     service.send('cancel');
@@ -123,7 +122,6 @@ export const createForm = <
     reset,
     submit,
     validate,
-    // clearError,
     submitAsync,
     cancelSubmit,
     __service: service,
