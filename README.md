@@ -79,7 +79,7 @@ An object which provides
 
 - `submit` ((...ignore?: string[]) => void) - a function to submit the form
 - `reset` - a function to reset the form state to its initial state
-- `cancelSubmit` (() => void) - function to cancel the current form submission
+- `cancel` (() => void) - function to cancel either the form validation or the current form submission
 - `submitAsync` - async version of submit and resolves with the submission result
 - `set` - ((name, value) => void) - a function to set the value for any given field
 - `subscribe` ((stateListener) => () => void) - a state listener with the current state of the form (see below for [stateListener](#state-listener))
