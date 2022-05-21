@@ -71,7 +71,15 @@ export const machine = <T extends object>(
       },
 
       on: {
-        submit: 'validating',
+        submit: [
+          {
+            target: 'validating',
+            cond: (c) => Object.values(c.actors).length > 0,
+          },
+          {
+            target: 'submitting',
+          },
+        ],
 
         reset: {
           target: 'idle',
