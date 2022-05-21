@@ -14,7 +14,9 @@ export * from './machine';
 export * as actor from './machine/actor';
 export { Validator, FormState, ActorState, Submitter };
 
-export type SubscriptionValue<T extends object, D, E, Es> = Pick<
+export type Values<T extends object, D, E, Es> = {
+  state: FormState;
+} & Pick<
   Ctx<T, D, E, Es>,
   | 'data'
   | 'error'
@@ -33,7 +35,7 @@ export type SubscriptionValue<T extends object, D, E, Es> = Pick<
 export type Actions<T = any, D = any> = {
   reset: () => void;
   submit: () => void;
-  cancelSubmit: () => void;
+  cancel: () => void;
   kill: (id: string) => void;
   submitAsync: () => Promise<D>;
   set: <N extends keyof T>(name: N, value: T[N]) => void;
@@ -43,9 +45,7 @@ export type Actions<T = any, D = any> = {
 
 export type Extra<T extends object, D, E, FE> = {
   __service: Interpreter<Ctx<T, D, E, FE>, any, Events, States>;
-  subscribe: (
-    subscriber: (state: SubscriptionValue<T, D, E, FE>) => void
-  ) => void;
+  subscribe: (subscriber: (state: Values<T, D, E, FE>) => void) => void;
 };
 
 export type Config<T extends object, D> = {
@@ -73,7 +73,7 @@ export const create = <
     service.send('submit');
   };
 
-  const cancelSubmit: Actions['cancelSubmit'] = () => {
+  const cancel: Actions['cancel'] = () => {
     service.send('cancel');
   };
 
@@ -107,6 +107,13 @@ export const create = <
           reject(s.context.error);
           service.off(onTransition);
         }
+
+        if (s.event.type === 'cancel') {
+          const err = new Error('Form submission was cancelled at: ' + s.value);
+          err.name = 'CancelError';
+          reject(err);
+          service.off(onTransition);
+        }
       };
 
       service.onTransition(onTransition);
@@ -121,9 +128,9 @@ export const create = <
     spawn,
     reset,
     submit,
+    cancel,
     validate,
     submitAsync,
-    cancelSubmit,
     __service: service,
     subscribe: (subscriber) => {
       const subscription = service.subscribe((s) => {
