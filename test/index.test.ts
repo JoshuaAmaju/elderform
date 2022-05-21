@@ -50,7 +50,7 @@ describe('field validation', () => {
       validator: (v) => z.string().parseAsync(v),
     });
 
-    service?.onTransition(({ context, value }) => {
+    service?.onTransition(({ context }) => {
       if (context.states.name === 'error') {
         expect(context.errors.name).toBeDefined();
         done();
@@ -86,6 +86,50 @@ describe('submission', () => {
 
   afterEach(() => {
     service = null;
+  });
+
+  it('should cancel submission at validation state', (done) => {
+    service?.send({
+      id: 'name',
+      value: 'Joe',
+      type: 'spawn',
+      validator: (v) => z.string().parseAsync(v),
+    });
+
+    service?.onTransition((state) => {
+      if (state.matches('validating')) {
+        service?.send('cancel');
+      }
+
+      if (state.matches('idle') && state.history?.matches('validating')) {
+        done();
+      }
+    });
+
+    service?.send('submit');
+  });
+
+  it('should cancel submission at submitting state', (done) => {
+    service?.onTransition((state) => {
+      if (state.matches('submitting')) {
+        service?.send('cancel');
+      }
+
+      if (state.matches('idle') && state.history?.matches('submitting')) {
+        done();
+      }
+    });
+
+    service?.send('submit');
+  });
+
+  it('should skip validation if there are no actors', (done) => {
+    service?.onTransition((state) => {
+      expect(state.value).not.toEqual('validating');
+      if (state.matches('submitted')) done();
+    });
+
+    service?.send('submit');
   });
 
   it('should submit without error', (done) => {
