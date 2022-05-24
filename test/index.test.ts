@@ -77,6 +77,51 @@ describe('field validation', () => {
 
     service?.send({ id: 'name', type: 'validate' });
   });
+
+  it('should unset value if validator returns null', (done) => {
+    service?.send({
+      id: 'name',
+      value: 'John',
+      type: 'spawn',
+      validator: async (v) => {
+        const res = await z.string().parseAsync(v);
+        return null;
+      },
+    });
+
+    service?.onTransition(({ context }) => {
+      if (context.states.name === 'idle') {
+        expect(context.values.name).toBe('John');
+      }
+
+      if (context.states.name === 'success') {
+        expect(context.values.name).toBeNull();
+        done();
+      }
+    });
+
+    service?.send({ type: 'validate', id: 'name' });
+  });
+
+  it('should retain previous value if validator returns void or undefined', (done) => {
+    service?.send({
+      id: 'name',
+      value: 'John',
+      type: 'spawn',
+      validator: async (v) => {
+        const res = await z.string().parseAsync(v);
+      },
+    });
+
+    service?.onTransition(({ context }) => {
+      if (context.states.name === 'success') {
+        expect(context.values.name).toBe('John');
+        done();
+      }
+    });
+
+    service?.send({ type: 'validate', id: 'name' });
+  });
 });
 
 describe('submission', () => {
