@@ -158,7 +158,7 @@ export const machine = <T extends object>(
         },
 
         actor_success: {
-          actions: ['setValue', 'setSuccessState'],
+          actions: ['maybeSetValue', 'setSuccessState'],
         },
 
         actor_error: {
@@ -213,7 +213,7 @@ export const machine = <T extends object>(
 
             actor_success: {
               actions: [
-                'setValue',
+                'maybeSetValue',
                 'removeActorError',
                 'mark',
                 'setSuccessState',

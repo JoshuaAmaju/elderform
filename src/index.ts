@@ -63,7 +63,7 @@ export const create = <
   onSubmit,
   initialValues,
 }: Config<T, D>): Actions<T, TData> & Extra<T, TData, E, FE> => {
-  const service = interpret(machine<T>(initialValues as T, onSubmit));
+  const service = interpret(machine<T>(initialValues as T, onSubmit)).start();
 
   const reset: Actions['reset'] = () => {
     service.send('reset');
