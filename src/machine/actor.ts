@@ -42,18 +42,18 @@ export const actor = (
           }),
         },
 
-        set: {
-          actions: choose([
-            {
-              actions: 'setValue',
-              cond: (_, { name }) => name === 'value',
-            },
-            {
-              cond: (_, { name }) => name === 'error',
-              actions: assign({ error: (_, { value }) => value }),
-            },
-          ]),
-        },
+        // set: {
+        //   actions: choose([
+        //     {
+        //       actions: 'setValue',
+        //       cond: (_, { name }) => name === 'value',
+        //     },
+        //     {
+        //       cond: (_, { name }) => name === 'error',
+        //       actions: assign({ error: (_, { value }) => value }),
+        //     },
+        //   ]),
+        // },
 
         change: [
           {

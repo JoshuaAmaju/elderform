@@ -124,7 +124,7 @@ export const machine = <T extends object>(
         set: {
           actions: [
             'setValue',
-            'setInitialState',
+            // 'setInitialState',
             'removeActorError',
             choose([
               {
