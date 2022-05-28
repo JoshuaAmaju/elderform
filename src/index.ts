@@ -23,7 +23,6 @@ export type Values<T extends object, D, E, Es> = {
   | 'values'
   | 'states'
   | 'errors'
-  | 'successCount'
   | 'failureCount'
   | 'dataUpdatedAt'
   | 'errorUpdatedAt'
@@ -142,7 +141,6 @@ export const create = <
           errors,
           actors,
           values,
-          successCount,
           failureCount,
           dataUpdatedAt,
           errorUpdatedAt,
@@ -166,7 +164,6 @@ export const create = <
           states,
           errors,
 
-          successCount,
           failureCount,
           dataUpdatedAt,
           errorUpdatedAt,

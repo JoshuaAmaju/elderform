@@ -8,7 +8,6 @@ export type Ctx<T extends object = any, D = any, E = any, FE = any> = {
   data?: D;
   values: T;
   error?: E | null;
-  successCount: number;
   failureCount: number;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
@@ -64,7 +63,6 @@ export const machine = <T extends object>(
         actors: {},
         errors: {},
         states: {},
-        successCount: 0,
         failureCount: 0,
         dataUpdatedAt: 0,
         errorUpdatedAt: 0,
@@ -270,13 +268,11 @@ export const machine = <T extends object>(
         submitted: {
           entry: assign({
             failureCount: (_) => 0,
-            successCount: (ctx) => ctx.successCount + 1,
           }),
         },
 
         error: {
           entry: assign({
-            successCount: (_) => 0,
             failureCount: (ctx) => ctx.failureCount + 1,
           }),
 
