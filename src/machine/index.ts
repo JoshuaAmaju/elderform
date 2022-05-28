@@ -8,6 +8,7 @@ export type Ctx<T extends object = any, D = any, E = any, FE = any> = {
   data?: D;
   values: T;
   error?: E | null;
+  successCount: number;
   failureCount: number;
   dataUpdatedAt?: number;
   errorUpdatedAt?: number;
@@ -27,9 +28,9 @@ export type Events =
   | { type: 'submit' | 'cancel' }
 
   // actor events
-  | { id: string; type: 'actor_validating' }
   | { id: string; type: 'actor_error'; error: unknown }
-  | { id: string; type: 'actor_success'; value: unknown };
+  | { id: string; type: 'actor_success'; value: unknown }
+  | { id: string; type: 'actor_validating' | 'actor_idle' };
 
 export type States = {
   value: 'idle' | 'validating' | 'error' | 'submitting' | 'submitted';
@@ -63,6 +64,7 @@ export const machine = <T extends object>(
         actors: {},
         errors: {},
         states: {},
+        successCount: 0,
         failureCount: 0,
         dataUpdatedAt: 0,
         errorUpdatedAt: 0,
@@ -97,10 +99,10 @@ export const machine = <T extends object>(
               dataUpdatedAt: (_) => 0,
               errorUpdatedAt: (_) => 0,
               values: (_) => initialValues ?? {},
-              states: ({ states, actors }) => {
-                Object.keys(actors).forEach((k) => set(states, k, 'idle'));
-                return states;
-              },
+              // states: ({ states, actors }) => {
+              //   Object.keys(actors).forEach((k) => set(states, k, 'idle'));
+              //   return states;
+              // },
             }),
           ],
         },
@@ -149,12 +151,19 @@ export const machine = <T extends object>(
         },
 
         spawn: {
-          actions: ['spawnActor', 'setInitialState'],
+          actions: [
+            'spawnActor',
+            // 'setInitialState'
+          ],
         },
 
         kill: {
           cond: 'has_actor',
           actions: ['killActor', 'removeState'],
+        },
+
+        actor_idle: {
+          actions: 'setInitialState',
         },
 
         actor_success: {
@@ -229,13 +238,13 @@ export const machine = <T extends object>(
             '*': undefined,
           },
 
-          entry: [
-            'clearError',
-            assign({
-              data: (_) => null,
-              error: (_) => null,
-            }),
-          ],
+          // entry: [
+          //   'clearError',
+          //   assign({
+          //     data: (_) => null,
+          //     error: (_) => null,
+          //   }),
+          // ],
 
           invoke: {
             src: 'submit',
@@ -261,11 +270,13 @@ export const machine = <T extends object>(
         submitted: {
           entry: assign({
             failureCount: (_) => 0,
+            successCount: (ctx) => ctx.successCount + 1,
           }),
         },
 
         error: {
           entry: assign({
+            successCount: (_) => 0,
             failureCount: (ctx) => ctx.failureCount + 1,
           }),
 

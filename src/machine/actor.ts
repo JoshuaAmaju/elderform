@@ -1,5 +1,4 @@
 import { assign, createMachine, sendParent } from 'xstate';
-import { choose } from 'xstate/lib/actions';
 import { Validator } from './types';
 
 export type Ctx<T = any, E = any> = {
@@ -73,7 +72,9 @@ export const actor = (
       },
 
       states: {
-        idle: {},
+        idle: {
+          entry: 'notifyIdle',
+        },
 
         validating: {
           entry: 'notifyValidating',
@@ -112,6 +113,10 @@ export const actor = (
         }),
 
         clearError: assign({ error: (_) => null }),
+
+        notifyIdle: sendParent((_) => {
+          return { id, type: 'actor_idle' };
+        }),
 
         notifyValidating: sendParent(() => {
           return { id, type: 'actor_validating' };
