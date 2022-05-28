@@ -19,12 +19,11 @@ export type Ctx<T extends object = any, D = any, E = any, FE = any> = {
 
 export type Events =
   | { type: 'reset' }
-  | { type: 'set'; id: string; value: unknown }
-  | { type: 'spawn'; id: string; value: unknown; validator: Validator }
   | { type: 'kill'; id: string }
-  | { type: 'validate'; id: string; value?: any }
-  // | { type: 'clear_error'; id: string }
   | { type: 'submit' | 'cancel' }
+  | { type: 'set'; id: string; value: unknown }
+  | { type: 'validate'; id: string; value?: any }
+  | { type: 'spawn'; id: string; value: unknown; validator: Validator }
 
   // actor events
   | { id: string; type: 'actor_error'; error: unknown }
