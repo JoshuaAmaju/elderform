@@ -23,7 +23,7 @@ export type Events =
   | { type: 'submit' | 'cancel' }
   | { type: 'set'; id: string; value: unknown }
   | { type: 'validate'; id: string; value?: any }
-  | { type: 'spawn'; id: string; value: unknown; validator: Validator }
+  | { type: 'spawn'; id: string; value: unknown; onValidate: Validator }
 
   // actor events
   | { id: string; type: 'actor_error'; error: unknown }
@@ -319,12 +319,12 @@ export const machine = <T extends object, TErrors extends object>({
             set(values, id, value ?? get(initialValues, id));
             return values;
           },
-          actors: ({ actors }, { id, value, validator }: any) => {
+          actors: ({ actors }, { id, value, onValidate }: any) => {
             const error = get(initialErrors, id);
             const v = value ?? get(initialValues, id);
 
             const spawned = spawn(
-              actor.actor({ id, value: v, error, validator }),
+              actor.actor({ id, value: v, error, onValidate }),
               id
             );
 

@@ -21,12 +21,12 @@ export const actor = ({
   id,
   error,
   value,
-  validator,
+  onValidate,
 }: {
   id: string;
   error?: unknown;
   value?: unknown;
-  validator: Validator;
+  onValidate: Validator;
 }) => {
   return createMachine<Ctx, Events, States>(
     {
@@ -136,7 +136,7 @@ export const actor = ({
       },
       services: {
         validate: async ({ value }, { values, ...e }: any) => {
-          const res = validator(e.value ?? value, values);
+          const res = onValidate(e.value ?? value, values);
           return res instanceof Promise ? await res : res;
         },
       },

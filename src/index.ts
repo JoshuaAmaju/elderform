@@ -40,7 +40,7 @@ export type Actions<T = any, D = any> = {
   submitAsync: () => Promise<D>;
   set: <N extends keyof T>(name: N, value: T[N]) => void;
   validate: <N extends keyof T>(name: N, value?: T[N]) => void;
-  spawn: (id: string, value: unknown | null, validator: Validator) => void;
+  spawn: (id: string, value: unknown | null, onValidate: Validator) => void;
 };
 
 export type Extra<T extends object, D, E, FE> = {
@@ -90,8 +90,8 @@ export const create = <
     service.send({ id, type: 'kill' });
   };
 
-  const spawn: Actions['spawn'] = (id, value, validator) => {
-    service.send({ id, value, validator, type: 'spawn' });
+  const spawn: Actions['spawn'] = (id, value, onValidate) => {
+    service.send({ id, value, onValidate, type: 'spawn' });
   };
 
   const set: Actions<ValuesType>['set'] = (id, value) => {

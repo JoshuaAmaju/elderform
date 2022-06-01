@@ -14,7 +14,7 @@ describe('actor', () => {
 
   beforeEach(() => {
     service = interpret(
-      actor({ id: '1', validator: (v) => string().parseAsync(v) }).withConfig({
+      actor({ id: '1', onValidate: (v) => string().parseAsync(v) }).withConfig({
         actions: mockActions,
       })
     ).start();
@@ -32,7 +32,7 @@ describe('actor', () => {
         id: '1',
         value: 'Joe',
         error: new Error(''),
-        validator: (v) => string().parseAsync(v),
+        onValidate: (v) => string().parseAsync(v),
       }).withConfig({ actions: mockActions })
     ).start();
 
@@ -48,7 +48,7 @@ describe('actor', () => {
       actor({
         id: '1',
         value: 'Joe',
-        validator: (v) => string().parseAsync(v),
+        onValidate: (v) => string().parseAsync(v),
       }).withConfig({
         actions: mockActions,
       })
@@ -86,7 +86,7 @@ describe('actor', () => {
 
   it('validation should pass and resolve with new value', (done) => {
     const service = interpret(
-      actor({ id: '1', validator: () => 'Jane' }).withConfig({
+      actor({ id: '1', onValidate: () => 'Jane' }).withConfig({
         actions: mockActions,
       })
     ).start();

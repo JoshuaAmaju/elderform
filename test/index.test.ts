@@ -51,7 +51,7 @@ describe('field validation', () => {
       value: 100,
       id: 'name',
       type: 'spawn',
-      validator: (v) => z.string().parseAsync(v),
+      onValidate: (v) => z.string().parseAsync(v),
     });
 
     service?.onTransition(({ context }) => {
@@ -69,7 +69,7 @@ describe('field validation', () => {
       id: 'name',
       value: 'Joe',
       type: 'spawn',
-      validator: (v) => z.string().parseAsync(v),
+      onValidate: (v) => z.string().parseAsync(v),
     });
 
     service?.onTransition(({ context }) => {
@@ -87,7 +87,7 @@ describe('field validation', () => {
       id: 'name',
       value: 'John',
       type: 'spawn',
-      validator: async (v) => {
+      onValidate: async (v) => {
         const res = await z.string().parseAsync(v);
         return null;
       },
@@ -114,7 +114,7 @@ describe('field validation', () => {
       id: 'name',
       value: 'John',
       type: 'spawn',
-      validator: async (v) => {
+      onValidate: async (v) => {
         const res = await z.string().parseAsync(v);
       },
     });
@@ -144,7 +144,7 @@ describe('submission', () => {
       id: 'name',
       value: 'Joe',
       type: 'spawn',
-      validator: (v) => z.string().parseAsync(v),
+      onValidate: (v) => z.string().parseAsync(v),
     });
 
     service?.onTransition((state) => {
@@ -219,7 +219,7 @@ describe('submission', () => {
       value: 1,
       id: 'name',
       type: 'spawn',
-      validator: (v) => z.string().parseAsync(v),
+      onValidate: (v) => z.string().parseAsync(v),
     });
 
     service?.onTransition((state) => {
@@ -279,7 +279,7 @@ describe('dynamic schema', () => {
       id,
       value: 'Joe',
       type: 'spawn',
-      validator: (v) => z.string().parse(v),
+      onValidate: (v) => z.string().parse(v),
     });
   });
 });
