@@ -17,18 +17,22 @@ export type States = {
   context: Ctx;
 };
 
-export const actor = (
-  id: string,
-  initialValue: unknown,
-  validator: Validator
-) => {
+export const actor = ({
+  id,
+  error,
+  value,
+  validator,
+}: {
+  id: string;
+  error?: unknown;
+  value?: unknown;
+  validator: Validator;
+}) => {
   return createMachine<Ctx, Events, States>(
     {
-      initial: 'idle',
+      initial: !!error ? 'error' : 'idle',
 
-      context: {
-        value: initialValue,
-      },
+      context: { error, value },
 
       on: {
         validate: 'validating',
@@ -36,8 +40,8 @@ export const actor = (
         reset: {
           target: 'idle',
           actions: assign({
-            error: (_) => null,
-            value: (_) => initialValue,
+            error: (_) => error,
+            value: (_) => value,
           }),
         },
 

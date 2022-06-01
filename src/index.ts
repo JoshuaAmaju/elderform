@@ -48,22 +48,31 @@ export type Extra<T extends object, D, E, FE> = {
   subscribe: (subscriber: (state: Values<T, D, E, FE>) => void) => void;
 };
 
-export type Config<T extends object, D> = {
+export type Config<T extends object, D, TErrors extends object> = {
   onSubmit: (value: T) => D | Promise<D>;
   initialValues?: { [K in keyof T]?: T[K] };
+  initialErrors?: { [K in keyof TErrors]?: TErrors[K] };
 };
 
 export const create = <
-  T extends object = any,
-  D = any,
-  E = any,
-  FE = any,
-  TData = D
+  ValuesType extends object = any,
+  DataType = any,
+  ErrorType = any,
+  ErrorsType extends object = any,
+  TData = DataType
 >({
   onSubmit,
   initialValues,
-}: Config<T, D>): Actions<T, TData> & Extra<T, TData, E, FE> => {
-  const service = interpret(machine<T>(initialValues as T, onSubmit)).start();
+  initialErrors,
+}: Config<ValuesType, DataType, ErrorsType>): Actions<ValuesType, TData> &
+  Extra<ValuesType, TData, ErrorType, ErrorsType> => {
+  const service = interpret(
+    machine<ValuesType, ErrorsType>({
+      initialValues,
+      initialErrors,
+      onSubmit,
+    } as any)
+  ).start();
 
   const reset: Actions['reset'] = () => {
     service.send('reset');
@@ -85,18 +94,18 @@ export const create = <
     service.send({ id, value, validator, type: 'spawn' });
   };
 
-  const set: Actions<T>['set'] = (id, value) => {
+  const set: Actions<ValuesType>['set'] = (id, value) => {
     service.send({ id: id as string, value, type: 'set' });
   };
 
-  const validate: Actions<T>['validate'] = (id, value) => {
+  const validate: Actions<ValuesType>['validate'] = (id, value) => {
     service.send({ value, id: id as string, type: 'validate' });
   };
 
   const submitAsync: Actions['submitAsync'] = () => {
     return new Promise((resolve, reject) => {
       const onTransition = (
-        s: State<Ctx<T, any, any, any>, Events, any, States>
+        s: State<Ctx<ValuesType, any, any, any>, Events, any, States>
       ) => {
         if (s.matches('submitted')) {
           resolve(s.context.data);
