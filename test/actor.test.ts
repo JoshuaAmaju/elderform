@@ -6,6 +6,7 @@ describe('actor', () => {
   let service: Interpreter<Ctx, any, Events, States>;
 
   const mockActions = {
+    notifyIdle: () => {},
     notifyError: () => {},
     notifySuccess: () => {},
     notifyValidating: () => {},
@@ -13,7 +14,7 @@ describe('actor', () => {
 
   beforeEach(() => {
     service = interpret(
-      actor('1', null, (v) => string().parseAsync(v)).withConfig({
+      actor({ id: '1', validator: (v) => string().parseAsync(v) }).withConfig({
         actions: mockActions,
       })
     ).start();
@@ -25,9 +26,30 @@ describe('actor', () => {
     });
   });
 
+  it('should initialise actor to error state', (done) => {
+    const service = interpret(
+      actor({
+        id: '1',
+        value: 'Joe',
+        error: new Error(''),
+        validator: (v) => string().parseAsync(v),
+      }).withConfig({ actions: mockActions })
+    ).start();
+
+    service.onTransition((state) => {
+      expect(state.value).toBe('error');
+      expect(state.matches('error')).toBeTruthy();
+      done();
+    });
+  });
+
   it('should create actor with initial value', (done) => {
     const service = interpret(
-      actor('1', 'Joe', (v) => string().parseAsync(v)).withConfig({
+      actor({
+        id: '1',
+        value: 'Joe',
+        validator: (v) => string().parseAsync(v),
+      }).withConfig({
         actions: mockActions,
       })
     ).start();
@@ -64,7 +86,9 @@ describe('actor', () => {
 
   it('validation should pass and resolve with new value', (done) => {
     const service = interpret(
-      actor('1', null, () => 'Jane').withConfig({ actions: mockActions })
+      actor({ id: '1', validator: () => 'Jane' }).withConfig({
+        actions: mockActions,
+      })
     ).start();
 
     service.onTransition((state) => {

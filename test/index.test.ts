@@ -4,7 +4,7 @@ import { machine, Ctx, Events, States } from '../src/machine';
 
 let service: Interpreter<Ctx, any, Events, States> | null;
 
-const def = machine({}, async () => {});
+const def = machine({ onSubmit: () => {} });
 
 describe('machine', () => {
   beforeEach(() => {
@@ -22,7 +22,11 @@ describe('machine', () => {
   });
 
   it('should initialize with default values', (done) => {
-    const def = machine({ name: 'Joe' }, async () => {});
+    const def = machine({
+      onSubmit: async () => {},
+      initialValues: { name: 'Joe' },
+    });
+
     const service = interpret(def).start();
 
     service?.onTransition(({ context: ctx }) => {
@@ -44,7 +48,7 @@ describe('field validation', () => {
 
   it('should validate field with error', (done) => {
     service?.send({
-      value: 1,
+      value: 100,
       id: 'name',
       type: 'spawn',
       validator: (v) => z.string().parseAsync(v),
@@ -90,6 +94,8 @@ describe('field validation', () => {
     });
 
     service?.onTransition(({ context }) => {
+      console.log(context.values);
+
       if (context.states.name === 'idle') {
         expect(context.values.name).toBe('John');
       }
@@ -180,7 +186,7 @@ describe('submission', () => {
   it('should submit without error', (done) => {
     service?.onTransition((state) => {
       if (state.matches('submitted')) {
-        expect(state.context.error).toBeNull();
+        expect(state.context.error).not.toBeDefined();
         done();
       }
     });
@@ -189,8 +195,11 @@ describe('submission', () => {
   });
 
   it('should submit with error', (done) => {
-    const def = machine({}, async () => {
-      throw new Error('error');
+    const def = machine({
+      initialValues: {},
+      onSubmit: async () => {
+        throw new Error('error');
+      },
     });
 
     const service = interpret(def).start();
@@ -251,17 +260,19 @@ describe('dynamic schema', () => {
 
   it('should spawn and kill actor', (done) => {
     let id = '1';
-    let defined = false;
+    let killed = false;
 
     service?.onChange(({ actors }) => {
-      if (defined) {
-        expect(actors[id]).toBeUndefined();
-        done();
-        return;
+      if (actors[id]) {
+        service?.send({ id, type: 'kill' });
       }
 
-      defined = true;
-      service?.send({ id, type: 'kill' });
+      if (killed) {
+        expect(actors[id]).not.toBeDefined();
+        done();
+      }
+
+      killed = !actors[id];
     });
 
     service?.send({
@@ -284,7 +295,7 @@ describe('nested schemas', () => {
   };
 
   beforeEach(() => {
-    const def = machine(values, async () => {});
+    const def = machine({ initialValues: values, onSubmit: async () => {} });
     service = interpret(def).start();
   });
 
