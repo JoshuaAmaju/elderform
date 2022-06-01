@@ -50,23 +50,28 @@ const setState = (state: ActorState) => {
   });
 };
 
-export const machine = <T extends object>(
-  initialValues: T,
-  onSubmit: Submitter<T>
-) => {
+export const machine = <T extends object, TErrors extends object>({
+  onSubmit,
+  initialValues = {} as T,
+  initialErrors = {} as TErrors,
+}: {
+  initialValues?: T;
+  onSubmit: Submitter<T>;
+  initialErrors?: TErrors;
+}) => {
   return createMachine<Ctx<T>, Events, States>(
     {
       initial: 'idle',
 
       context: {
         actors: {},
-        errors: {},
         states: {},
         failureCount: 0,
         dataUpdatedAt: 0,
         errorUpdatedAt: 0,
+        errors: initialErrors,
+        values: initialValues,
         __validationMarker: new Set(),
-        values: initialValues ?? ({} as T),
       },
 
       on: {
@@ -91,39 +96,18 @@ export const machine = <T extends object>(
             assign({
               data: (_) => null,
               error: (_) => null,
-              errors: (_) => ({}),
               failureCount: (_) => 0,
               dataUpdatedAt: (_) => 0,
               errorUpdatedAt: (_) => 0,
-              values: (_) => initialValues ?? {},
-              // states: ({ states, actors }) => {
-              //   Object.keys(actors).forEach((k) => set(states, k, 'idle'));
-              //   return states;
-              // },
+              errors: (_) => initialErrors,
+              values: (_) => initialValues,
             }),
           ],
         },
 
-        // clear_error: [
-        //   {
-        //     cond: (_, { id }) => !!id,
-        //     actions: [
-        //       'removeActorError',
-        //       send((_) => ({ type: 'set', name: 'error', value: null }), {
-        //         to: (_, { id }) => id,
-        //       }),
-        //     ],
-        //   },
-        //   {
-        //     target: 'idle',
-        //     actions: 'clearError',
-        //   },
-        // ],
-
         set: {
           actions: [
             'setValue',
-            // 'setInitialState',
             'removeActorError',
             choose([
               {
@@ -148,10 +132,7 @@ export const machine = <T extends object>(
         },
 
         spawn: {
-          actions: [
-            'spawnActor',
-            // 'setInitialState'
-          ],
+          actions: 'spawnActor',
         },
 
         kill: {
@@ -339,8 +320,14 @@ export const machine = <T extends object>(
             return values;
           },
           actors: ({ actors }, { id, value, validator }: any) => {
+            const error = get(initialErrors, id);
             const v = value ?? get(initialValues, id);
-            const spawned = spawn(actor.actor(id, v, validator), id);
+
+            const spawned = spawn(
+              actor.actor({ id, value: v, error, validator }),
+              id
+            );
+
             return { ...actors, [id]: spawned };
           },
         }),
