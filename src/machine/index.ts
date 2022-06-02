@@ -137,7 +137,12 @@ export const machine = <T extends object, TErrors extends object>({
 
         kill: {
           cond: 'has_actor',
-          actions: ['killActor', 'removeState'],
+          actions: [
+            'killActor',
+            'removeState',
+            'deleteValue',
+            'removeActorError',
+          ],
         },
 
         actor_idle: {
@@ -314,14 +319,21 @@ export const machine = <T extends object, TErrors extends object>({
           states: ({ states }, { id }: any) => del(states, id),
         }),
 
+        deleteValue: assign({
+          states: ({ values }, { id }: any) => del(values, id),
+        }),
+
         spawnActor: assign({
           values: ({ values }, { id, value }: any) => {
-            set(values, id, value ?? get(initialValues, id));
+            if (value !== undefined) set(values, id, value);
             return values;
           },
-          actors: ({ actors }, { id, value, onValidate }: any) => {
-            const error = get(initialErrors, id);
-            const v = value ?? get(initialValues, id);
+          actors: (
+            { actors, errors, values },
+            { id, value, onValidate }: any
+          ) => {
+            const error = get(errors, id);
+            const v = value ?? get(values, id);
 
             const spawned = spawn(
               actor.actor({ id, value: v, error, onValidate }),
