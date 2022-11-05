@@ -39,7 +39,7 @@ export type Actions<T = any, D = any> = {
   kill: (id: string) => void;
   submitAsync: () => Promise<D>;
   set: <N extends keyof T>(name: N, value: T[N]) => void;
-  validate: <N extends keyof T>(name: N, value?: T[N]) => void;
+  validate: <N extends keyof T>(name: string, value?: T[N]) => void;
   spawn: (id: string, value: unknown | null, onValidate: Validator) => void;
 };
 
@@ -48,10 +48,10 @@ export type Extra<T extends object, D, E, FE> = {
   subscribe: (subscriber: (state: Values<T, D, E, FE>) => void) => void;
 };
 
-export type Config<T extends object, D, TErrors extends object> = {
-  onSubmit: (value: T) => D | Promise<D>;
-  initialValues?: { [K in keyof T]?: T[K] };
-  initialErrors?: { [K in keyof TErrors]?: TErrors[K] };
+export type Config<TValues extends object, D, TErrors> = {
+  onSubmit: (value: TValues) => D | Promise<D>;
+  initialErrors?: { [K in keyof TValues]: TErrors };
+  initialValues?: { [K in keyof TValues]?: TValues[K] };
 };
 
 export const create = <
@@ -97,6 +97,14 @@ export const create = <
   const set: Actions<ValuesType>['set'] = (id, value) => {
     service.send({ id: id as string, value, type: 'set' });
   };
+
+  // const setErrors: Actions<ValuesType>['setErrors'] = (value, id) => {
+  //   service.send({ id: id as string, name: 'errors', value, type: 'set' });
+  // };
+
+  // const setValues: Actions<ValuesType>['setValues'] = (value, id) => {
+  //   service.send({ id: id as string, name: 'values', value, type: 'set' });
+  // };
 
   const validate: Actions<ValuesType>['validate'] = (id, value) => {
     service.send({ value, id: id as string, type: 'validate' });

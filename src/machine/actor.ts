@@ -20,29 +20,29 @@ export type States = {
 export const actor = ({
   id,
   error,
-  value,
+  // value,
   onValidate,
 }: {
   id: string;
   error?: unknown;
-  value?: unknown;
+  // value?: unknown;
   onValidate: Validator;
 }) => {
   return createMachine<Ctx, Events, States>(
     {
       initial: !!error ? 'error' : 'idle',
 
-      context: { error, value },
+      // context: { error, value },
 
       on: {
         validate: 'validating',
 
         reset: {
           target: 'idle',
-          actions: assign({
-            error: (_) => error,
-            value: (_) => value,
-          }),
+          // actions: assign({
+          //   error: (_) => error,
+          //   value: (_) => value,
+          // }),
         },
 
         // set: {
@@ -58,21 +58,21 @@ export const actor = ({
         //   ]),
         // },
 
-        change: [
-          {
-            in: 'error',
-            target: 'idle',
-            actions: 'setValue',
-          },
-          {
-            in: 'validating',
-            actions: 'setValue',
-            target: 'validating',
-          },
-          {
-            actions: 'setValue',
-          },
-        ],
+        // change: [
+        //   {
+        //     in: 'error',
+        //     target: 'idle',
+        //     actions: 'setValue',
+        //   },
+        //   {
+        //     in: 'validating',
+        //     actions: 'setValue',
+        //     target: 'validating',
+        //   },
+        //   {
+        //     actions: 'setValue',
+        //   },
+        // ],
       },
 
       states: {
@@ -87,13 +87,16 @@ export const actor = ({
             src: 'validate',
             onError: {
               target: 'error',
-              actions: ['setError', 'notifyError'],
+              actions: [
+                // 'setError',
+                'notifyError',
+              ],
             },
             onDone: {
               target: 'idle',
               actions: [
                 'notifySuccess',
-                assign({ value: (_, { data }) => data }),
+                // assign({ value: (_, { data }) => data }),
               ],
             },
           },
@@ -108,15 +111,15 @@ export const actor = ({
     },
     {
       actions: {
-        setValue: assign({
-          value: (_, { value }: any) => value,
-        }),
+        // setValue: assign({
+        //   value: (_, { value }: any) => value,
+        // }),
 
-        setError: assign({
-          error: (_, { data }: any) => data,
-        }),
+        // setError: assign({
+        //   error: (_, { data }: any) => data,
+        // }),
 
-        clearError: assign({ error: (_) => null }),
+        // clearError: assign({ error: (_) => null }),
 
         notifyIdle: sendParent((_) => {
           return { id, type: 'actor_idle' };
@@ -135,8 +138,8 @@ export const actor = ({
         }),
       },
       services: {
-        validate: async ({ value }, { values, ...e }: any) => {
-          const res = onValidate(e.value ?? value, values);
+        validate: async (_, { value, values }: any) => {
+          const res = onValidate(value, values);
           return res instanceof Promise ? await res : res;
         },
       },

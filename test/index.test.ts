@@ -317,6 +317,11 @@ describe('nested schemas', () => {
       done();
     });
 
-    service?.send({ type: 'set', value: 'No 15', id: 'address.line' });
+    service?.send({
+      type: 'set',
+      name: 'values',
+      value: 'No 15',
+      id: 'address.line',
+    });
   });
 });

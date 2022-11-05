@@ -1,6 +1,7 @@
-import { del, get, set } from 'object-path';
+import { del, get, set, has } from 'object-path';
 import { ActorRef, assign, createMachine, send, spawn } from 'xstate';
 import { choose, pure } from 'xstate/lib/actions';
+import { isActor } from 'xstate/lib/Actor';
 import * as actor from './actor';
 import { ActorState, Submitter, Validator } from './types';
 
@@ -16,6 +17,18 @@ export type Ctx<T extends object = any, D = any, E = any, FE = any> = {
   states: Record<string, ActorState>;
   actors: Record<string, ActorRef<any>>;
 };
+
+export type SetType<T extends object, E> =
+  | { name: 'data'; value: Ctx<T, E>['data'] }
+  | { name: 'error'; value: Ctx<T, E>['error'] }
+  | (
+      | { name: 'values'; id: string; value: unknown }
+      | { name: 'values'; value: Required<Ctx<T, E>['values']> }
+    )
+  | (
+      | { name: 'errors'; id: string; value: unknown }
+      | { name: 'errors'; value: Required<Ctx<T, E>['errors']> }
+    );
 
 export type Events =
   | { type: 'reset' }
@@ -35,12 +48,6 @@ export type States = {
   context: Ctx;
 };
 
-// export type SetType<T extends object, E> =
-//   | { name: 'data'; value: Ctx<T, E>['data'] }
-//   | { name: 'error'; value: Ctx<T, E>['error'] };
-//   | { name: "values"; value: Required<Ctx<T, E>["values"]> };
-//   | { name: "errors"; value: Required<Ctx<T, E>["errors"]> }
-
 const setState = (state: ActorState) => {
   return assign<Ctx, Events>({
     states: ({ states }, { id }: any) => {
@@ -50,16 +57,40 @@ const setState = (state: ActorState) => {
   });
 };
 
-export const machine = <T extends object, TErrors extends object>({
+export const machine = <
+  TValues extends object,
+  TErrors,
+  Errors = { [K in keyof TValues]: TErrors }
+>({
   onSubmit,
-  initialValues = {} as T,
-  initialErrors = {} as TErrors,
+  initialErrors = {} as Errors,
+  initialValues = {} as TValues,
 }: {
-  initialValues?: T;
-  onSubmit: Submitter<T>;
-  initialErrors?: TErrors;
+  initialErrors?: Errors;
+  initialValues?: TValues;
+  onSubmit: Submitter<TValues>;
 }) => {
-  return createMachine<Ctx<T>, Events, States>(
+  // const handler = (): ProxyHandler<TValues> => ({
+  //   set(target, id, value) {
+  //     target[id as keyof TValues] = value;
+  //     return true;
+  //   },
+  //   get(target, id) {
+  //     if (
+  //       ['[object Object]', '[object Array]'].indexOf(
+  //         Object.prototype.toString.call(target[id as keyof TValues])
+  //       ) > -1
+  //     ) {
+  //       return new Proxy(target[id as keyof TValues] as any, handler());
+  //     }
+
+  //     return target[id as keyof TValues];
+  //   },
+  // });
+
+  // const proxy = new Proxy(initialValues, handler());
+
+  return createMachine<Ctx<TValues>, Events, States>(
     {
       initial: 'idle',
 
@@ -108,24 +139,108 @@ export const machine = <T extends object, TErrors extends object>({
         set: {
           actions: [
             'setValue',
-            'removeActorError',
-            choose([
-              {
-                cond: 'has_actor',
-                actions: send((_, { value }) => ({ type: 'change', value }), {
-                  to: (_, { id }) => id,
-                }),
-              },
-            ]),
+
+            // choose([
+            //   {
+            //     cond: (_, e) => e.name === 'values',
+            //     actions: assign({
+            //       values: ({ values }, e) => {
+            //         return {
+            //           ...values,
+            //           ...('id' in e ? { [e.id]: e.value } : e.value),
+            //         };
+            //       },
+            //     }),
+            //   },
+            //   {
+            //     cond: (_, e) => e.name === 'errors',
+            //     actions: assign({
+            //       errors: ({ errors }, e) => {
+            //         return {
+            //           ...errors,
+            //           ...('id' in e ? { [e.id]: e.value } : e.value),
+            //         };
+            //       },
+            //     }),
+            //   },
+            //   {
+            //     cond: (_, e) => e.name === 'data',
+            //     actions: assign({ data: (_, e) => e.value }),
+            //   },
+            //   {
+            //     actions: assign({ error: (_, e) => e.value }),
+            //   },
+            // ]),
+
+            // 'removeActorError',
+            // assign(({ actors, errors, values }, { id, value }) => {
+            //   const newValues = { ...values };
+
+            //   set(newValues, id, value);
+
+            //   console.log(values, newValues);
+
+            //   Object.keys(actors).forEach((key) => {
+            //     const path = key.split('.');
+
+            //     if (has(values, key) && !has(newValues, key)) {
+            //       actors[key].stop?.();
+            //       delete actors[key];
+            //       // del(errors, key);
+            //     }
+
+            //     while (path.length > 0) {
+            //       const str = path.join('.');
+            //       const val = get(newValues, str);
+
+            //       if (
+            //         val === undefined ||
+            //         (Array.isArray(val) && val.length <= 0) ||
+            //         (typeof val === 'object' && Object.keys(val).length <= 0)
+            //       ) {
+            //         console.log('delete', str, path);
+            //         del(errors, str);
+            //       }
+
+            //       path.pop();
+            //     }
+            //   });
+
+            //   return { actors, errors, values: newValues };
+            // }),
+            // choose([
+            //   {
+            //     cond: 'has_actor',
+            //     // cond: ({ actors }, {id}) => isActor(get(actors, id)),
+            //     actions: send((_, { value }) => ({ type: 'change', value }), {
+            //       to: ({ actors }, { id }) => get(actors, id),
+            //     }),
+            //   },
+            // ]),
           ],
         },
 
         validate: {
           cond: 'has_actor',
           actions: [
-            'removeActorError',
+            // 'removeActorError',
+            // (_, e) => {
+            //   console.log(
+            //     'validate',
+            //     e,
+            //     _.actors,
+            //     isActor(get(_.actors, e.id)),
+            //     get(_.actors, e.id)
+            //   );
+            // },
             send(
-              ({ values }, { value }) => ({ type: 'validate', value, values }),
+              ({ values }, { id, value }) => {
+                return {
+                  values,
+                  type: 'validate',
+                  value: value ?? get(values, id),
+                };
+              },
               { to: (_, { id }) => id }
             ),
           ],
@@ -133,6 +248,7 @@ export const machine = <T extends object, TErrors extends object>({
 
         spawn: {
           actions: 'spawnActor',
+          cond: ({ actors }, { id }) => !has(actors, id),
         },
 
         kill: {
@@ -140,8 +256,8 @@ export const machine = <T extends object, TErrors extends object>({
           actions: [
             'killActor',
             'removeState',
-            'deleteValue',
-            'removeActorError',
+            // 'deleteValue',
+            // 'removeActorError',
           ],
         },
 
@@ -294,7 +410,10 @@ export const machine = <T extends object, TErrors extends object>({
         }),
 
         removeActorError: assign({
-          errors: ({ errors }, { id }: any) => del(errors, id),
+          errors: ({ errors }, { id }: any) => {
+            del(errors, id);
+            return errors;
+          },
         }),
 
         mark: assign({
@@ -316,11 +435,17 @@ export const machine = <T extends object, TErrors extends object>({
         setValidatingState: setState('validating'),
 
         removeState: assign({
-          states: ({ states }, { id }: any) => del(states, id),
+          states: ({ states }, { id }: any) => {
+            del(states, id);
+            return states;
+          },
         }),
 
         deleteValue: assign({
-          states: ({ values }, { id }: any) => del(values, id),
+          values: ({ values }, { id }: any) => {
+            del(values, id);
+            return values;
+          },
         }),
 
         spawnActor: assign({
@@ -333,12 +458,15 @@ export const machine = <T extends object, TErrors extends object>({
             { id, value, onValidate }: any
           ) => {
             const error = get(errors, id);
-            const v = value ?? get(values, id);
+            // const v = value ?? get(values, id);
 
-            const spawned = spawn(
-              actor.actor({ id, value: v, error, onValidate }),
-              id
-            );
+            const spawned = spawn(actor.actor({ id, error, onValidate }), id);
+
+            // console.log('spawn actor', id);
+
+            // set(actors, id, spawned);
+
+            // return actors;
 
             return { ...actors, [id]: spawned };
           },
@@ -346,8 +474,10 @@ export const machine = <T extends object, TErrors extends object>({
 
         killActor: assign({
           actors: ({ actors }, { id }: any) => {
+            // get(actors, id).stop?.();
             actors[id].stop?.();
             delete actors[id];
+            // del(actors, id);
             return actors;
           },
         }),
